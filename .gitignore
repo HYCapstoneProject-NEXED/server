@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+*.egg
+*.pyo
+*.pyd
+dist/
+build/
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDEs
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment files (중요!)
+.env
+
+# 로그 파일
+*.log
+
+# Pydantic / pytest cache
+.mypy_cache/
+.pytest_cache/
+
+# 기타
+*.sqlite3
+*.db
+
+# Frontend build (필요시)
+frontend/node_modules/
+frontend/dist/
