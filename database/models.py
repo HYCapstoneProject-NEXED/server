@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, Enum, F
 from database.database import Base
 from sqlalchemy.orm import relationship
 import enum
+from datetime import datetime
 
 
 class User(Base):
@@ -57,3 +58,16 @@ class Annotation(Base):
     status = Column(Enum("pending", "completed", name="statusenum"), nullable=False)
 
     image = relationship("Image", back_populates="annotations")
+
+
+class DefectClasses(Base):
+    __tablename__ = "DefectClasses"
+
+    class_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    class_name = Column(String(50), unique=True, nullable=False)
+    class_color = Column(String(7), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+
