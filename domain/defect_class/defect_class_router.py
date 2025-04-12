@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Path, Body
 from sqlalchemy.orm import Session
 from database.database import get_db
-from domain.defect_class import defect_class_crud, defect_class_schema
+from domain.defect_class import defect_class_schema, defect_class_crud
 
 router = APIRouter(
     prefix="/defect-classes",
@@ -19,3 +19,12 @@ def create_defect_class(
     db: Session = Depends(get_db)
 ):
     return defect_class_crud.create_defect_class(db, defect_class)
+
+
+@router.patch("/{class_id}", response_model=defect_class_schema.DefectClassResponse)
+def update_defect_class_api(
+    class_id: int = Path(..., description="ID of the defect class to update"),
+    update_data: defect_class_schema.DefectClassUpdate = Body(...),
+    db: Session = Depends(get_db)
+):
+    return defect_class_crud.update_defect_class(db, class_id, update_data)
