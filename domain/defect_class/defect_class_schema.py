@@ -11,3 +11,8 @@ class DefectClassResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+# 결함 클래스 추가 응답 모델
+class DefectClassCreate(BaseModel):
+    class_name: str = Field(..., example="Scratch")
+    class_color: str = Field(..., example="#dbe4ff")
