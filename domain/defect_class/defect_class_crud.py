@@ -32,3 +32,13 @@ def update_defect_class(db: Session, class_id: int, update_data: defect_class_sc
     db.commit()
     db.refresh(db_class)
     return db_class
+
+
+def delete_defect_class(db: Session, class_id: int):
+    db_class = db.query(DefectClasses).filter(DefectClasses.class_id == class_id).first()
+    if not db_class:
+        raise HTTPException(status_code=404, detail="Defect class not found")
+
+    db.delete(db_class)
+    db.commit()
+    return {"success": True, "message": f"Defect class {class_id} deleted"}

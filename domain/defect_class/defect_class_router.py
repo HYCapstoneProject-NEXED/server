@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from database.database import get_db
 from domain.defect_class import defect_class_schema, defect_class_crud
 
+
 router = APIRouter(
     prefix="/defect-classes",
     tags=["Defect Class"]
@@ -28,3 +29,8 @@ def update_defect_class_api(
     db: Session = Depends(get_db)
 ):
     return defect_class_crud.update_defect_class(db, class_id, update_data)
+
+
+@router.delete("/{class_id}", response_model=defect_class_schema.DeleteResult)
+def delete_defect_class_api(class_id: int, db: Session = Depends(get_db)):
+    return defect_class_crud.delete_defect_class(db, class_id)
