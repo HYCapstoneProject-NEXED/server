@@ -41,16 +41,16 @@ class Image(Base):
 
     annotations = relationship("Annotation", back_populates="image")
 
-# 어노테이션 테이블
+
+# 어노테이션 테이블 (defect_type 제거 → class_id로 대체)
 class Annotation(Base):
     __tablename__ = "Annotations"
 
     annotation_id = Column(Integer, primary_key=True, index=True)
     image_id = Column(Integer, ForeignKey("Images.image_id", ondelete="CASCADE"), nullable=False)
-    defect_type = Column(
-        Enum(DefectTypeEnum, values_callable=lambda obj: [e.value for e in obj], name="defecttypeenum"),
-        nullable=False
-    )
+
+    class_id = Column(Integer, ForeignKey("DefectClasses.class_id", ondelete="RESTRICT"), nullable=False)
+
     date = Column(DateTime, nullable=False)
     conf_score = Column(Float, nullable=True)
     bounding_box = Column(JSON, nullable=False)
@@ -58,8 +58,10 @@ class Annotation(Base):
     status = Column(Enum("pending", "completed", name="statusenum"), nullable=False)
 
     image = relationship("Image", back_populates="annotations")
+    defect_class = relationship("DefectClasses", back_populates="annotations")
 
 
+# 결함 클래스 테이블
 class DefectClasses(Base):
     __tablename__ = "DefectClasses"
 
@@ -68,6 +70,8 @@ class DefectClasses(Base):
     class_color = Column(String(7), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    annotations = relationship("Annotation", back_populates="defect_class")
 
 
 
