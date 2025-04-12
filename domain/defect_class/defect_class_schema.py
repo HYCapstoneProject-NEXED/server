@@ -25,3 +25,9 @@ class DefectClassCreate(BaseModel):
 class DefectClassUpdate(BaseModel):
     class_name: Optional[str] = Field(None, example="New Name")
     class_color: Optional[str] = Field(None, example="#abcdef")
+
+
+# 삭제 요청 응답 스키마
+class DeleteResult(BaseModel):
+    success: bool
+    message: str
