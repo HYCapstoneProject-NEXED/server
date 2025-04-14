@@ -19,3 +19,14 @@ print(f"✅ GOOGLE_CLIENT_SECRET: {GOOGLE_CLIENT_SECRET}")
 print(f"✅ GOOGLE_REDIRECT_URI: {GOOGLE_REDIRECT_URI}")
 print(f"✅ JWT_SECRET: {JWT_SECRET}")
 print(f"✅ ALGORITHM: {ALGORITHM}")  # ✅ 추가된 변수 출력 확인
+
+# Naver 환경 변수 가져오기
+NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
+NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
+NAVER_REDIRECT_URI = os.getenv("NAVER_REDIRECT_URI")
+
+# Naver 환경 변수 잘 불러와졌는지 확인 (테스트용)
+print(f"✅ NAVER_CLIENT_ID: {NAVER_CLIENT_ID}")
+print(f"✅ NAVER_CLIENT_SECRET: {NAVER_CLIENT_SECRET}")
+print(f"✅ NAVER_REDIRECT_URI: {NAVER_REDIRECT_URI}")
+

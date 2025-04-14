@@ -7,6 +7,7 @@ from database.database import get_db
 from domain.user.auth import create_jwt_token
 from domain.user.user_crud import get_user_by_email, create_user
 from domain.user.user_schema import UserBase, UserResponse
+from datetime import date
 
 router = APIRouter()
 
@@ -136,3 +137,124 @@ def complete_profile(
     return {"message": "User profile completed successfully", "user": updated_user}
 
 
+
+from config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_REDIRECT_URI
+from database.database import get_db
+from domain.user.auth import create_jwt_token
+from domain.user.user_crud import get_user_by_email, create_user
+from domain.user.user_schema import UserBase, UserResponse
+
+router = APIRouter()
+
+# ✅ 네이버 로그인 URL 제공
+@router.get("/auth/naver/login")
+def naver_login():
+    base_url = "https://nid.naver.com/oauth2.0/authorize"
+    query = urllib.parse.urlencode({
+        "response_type": "code",
+        "client_id": NAVER_CLIENT_ID,
+        "redirect_uri": NAVER_REDIRECT_URI,
+        "state": "random_csrf_token"  # 실제 서비스에선 난수 추천
+    })
+    return {
+        "login_url": f"{base_url}?{query}"
+    }
+
+# ✅ 네이버 콜백 처리
+@router.get("/auth/naver/callback")
+def naver_callback(code: str, state: str, db: Session = Depends(get_db)):
+    # 1. access_token 요청
+    token_url = "https://nid.naver.com/oauth2.0/token"
+    token_data = {
+        "grant_type": "authorization_code",
+        "client_id": NAVER_CLIENT_ID,
+        "client_secret": NAVER_CLIENT_SECRET,
+        "code": code,
+        "state": state
+    }
+    token_res = requests.post(token_url, data=token_data)
+    token_json = token_res.json()
+    access_token = token_json.get("access_token")
+
+    if not access_token:
+        raise HTTPException(status_code=400, detail="Failed to obtain Naver access token")
+
+    # 2. 사용자 정보 요청
+    profile_url = "https://openapi.naver.com/v1/nid/me"
+    profile_res = requests.get(profile_url, headers={"Authorization": f"Bearer {access_token}"})
+    profile_json = profile_res.json()
+
+    if profile_json.get("resultcode") != "00":
+        raise HTTPException(status_code=400, detail="Failed to retrieve user info from Naver")
+
+    naver_user = profile_json["response"]
+    user_email = naver_user.get("email")
+
+    if not user_email:
+        raise HTTPException(status_code=400, detail="Email not provided by Naver")
+
+    # 3. 사용자 DB 조회 → 없으면 생성
+    user = get_user_by_email(db, user_email)
+    if not user:
+        new_user_data = UserBase(
+            google_email=user_email,  # 기존 필드 그대로 활용 (Google/Naver 공통 이메일 필드)
+            name='',
+            user_type='',
+            birthdate=date(2000, 1, 1),
+            nationality='',
+            address='',
+            company_name='',
+            factory_name='',
+            bank_name='',
+            bank_account='',
+            terms_accepted=False
+        )
+        user = create_user(db, new_user_data)
+
+        jwt_token = create_jwt_token(user.user_id)
+        return {
+            "message": "Additional user information required",
+            "access_token": jwt_token,
+            "token_type": "bearer",
+            "user": UserResponse.from_orm(user)
+        }
+
+    # 4. 기존 사용자 → 바로 JWT 발급
+    jwt_token = create_jwt_token(user.user_id)
+
+    return {
+        "message": "Login successful via Naver",
+        "access_token": jwt_token,
+        "token_type": "bearer",
+        "user": UserResponse.from_orm(user)
+    }
+
+@router.post("/auth/naver/signup")
+def naver_complete_profile(
+    user_update: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """
+    ✅ 네이버 로그인 사용자가 필수 정보를 입력하여 회원가입을 완료하는 API
+    """
+    user = get_user_by_email(db, current_user.google_email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    required_fields = [
+        user_update.name, user_update.user_type, user_update.birthdate,
+        user_update.nationality, user_update.company_name,
+        user_update.factory_name, user_update.bank_name, user_update.bank_account,
+        user_update.terms_accepted
+    ]
+
+    if any(field is None for field in required_fields):
+        raise HTTPException(status_code=400, detail="All required fields must be filled.")
+
+    updated_user = update_user_info(db, user, user_update)
+
+    return {
+        "message": "Naver user profile completed successfully",
+        "user": updated_user
+    }
