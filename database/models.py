@@ -56,7 +56,7 @@ class Annotation(Base):
     date = Column(DateTime, nullable=False)
     conf_score = Column(Float, nullable=True)
     bounding_box = Column(JSON, nullable=False)
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(Integer, ForeignKey("Users.user_id"), nullable=True)
     status = Column(Enum("pending", "completed", name="statusenum"), nullable=False)
 
     image = relationship("Image", back_populates="annotations")

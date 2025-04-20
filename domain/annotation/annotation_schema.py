@@ -36,3 +36,12 @@ class DefectDataFilter(BaseModel):
     dates: Optional[List[date]] = None
     class_ids: Optional[List[int]] = None
     camera_ids: Optional[List[int]] = None
+
+# 결함 개요 조회 응답용 스키마
+class DefectClassSummaryResponse(BaseModel):
+    class_name: str
+    class_color: str
+    count: int
+
+    class Config:
+        orm_mode = True
