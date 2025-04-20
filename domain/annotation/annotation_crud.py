@@ -3,7 +3,7 @@ from sqlalchemy import func, cast, Date, and_, or_
 from datetime import datetime, timedelta
 from database.models import Annotation, DefectClass, Image, Camera
 from collections import defaultdict
-from domain.annotation.annotation_schema import DefectDataFilter
+from domain.annotation import annotation_schema
 
 
 def get_defect_summary(db: Session):
@@ -100,7 +100,7 @@ def get_defect_data_list(db: Session):
 
 
 # 결함 데이터 목록 "필터링 조회"를 위한 함수
-def get_filtered_defect_data_list(db: Session, filters: DefectDataFilter):
+def get_filtered_defect_data_list(db: Session, filters: annotation_schema.DefectDataFilter):
     # 👉 아무 필터도 없을 경우 전체 조회로 대체
     if not filters.dates and not filters.class_ids and not filters.camera_ids:
         return get_defect_data_list(db)  # 기존 전체 조회 함수 호출
@@ -165,3 +165,25 @@ def get_filtered_defect_data_list(db: Session, filters: DefectDataFilter):
         grouped[key]["defect_types"].append(row.class_name)
 
     return list(grouped.values())
+
+
+# 결함 개요 조회를 위한 함수
+def get_defect_class_summary(db: Session):
+    results = (
+        db.query(
+            DefectClass.class_name,
+            DefectClass.class_color,
+            func.count(Annotation.annotation_id).label("count")
+        )
+        .join(Annotation, Annotation.class_id == DefectClass.class_id)
+        .group_by(DefectClass.class_id, DefectClass.class_name, DefectClass.class_color)
+        .all()
+    )
+
+    return [
+        annotation_schema.DefectClassSummaryResponse(
+            class_name=row.class_name,
+            class_color=row.class_color,
+            count=row.count
+        ) for row in results
+    ]

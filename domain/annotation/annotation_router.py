@@ -20,3 +20,7 @@ def get_defect_data_list_api(
     db: Session = Depends(get_db)
 ):
     return annotation_crud.get_filtered_defect_data_list(db, filters)
+
+@router.get("/class-summary", response_model=list[annotation_schema.DefectClassSummaryResponse])
+def read_defect_class_summary(db: Session = Depends(get_db)):
+    return annotation_crud.get_defect_class_summary(db)
