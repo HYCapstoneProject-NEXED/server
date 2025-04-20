@@ -1,15 +1,15 @@
 from sqlalchemy.orm import Session
-from database.models import DefectClasses
+from database.models import DefectClass
 from fastapi import HTTPException
 from domain.defect_class import defect_class_schema
 
 
 def get_all_defect_classes(db: Session):
-    return db.query(DefectClasses).order_by(DefectClasses.created_at).all()
+    return db.query(DefectClass).order_by(DefectClass.created_at).all()
 
 
-def create_defect_class(db: Session, defect_class: defect_class_schema.DefectClassCreate) -> DefectClasses:
-    db_class = DefectClasses(
+def create_defect_class(db: Session, defect_class: defect_class_schema.DefectClassCreate) -> DefectClass:
+    db_class = DefectClass(
         class_name=defect_class.class_name,
         class_color=defect_class.class_color
     )
@@ -20,7 +20,7 @@ def create_defect_class(db: Session, defect_class: defect_class_schema.DefectCla
 
 
 def update_defect_class(db: Session, class_id: int, update_data: defect_class_schema.DefectClassUpdate):
-    db_class = db.query(DefectClasses).filter(DefectClasses.class_id == class_id).first()
+    db_class = db.query(DefectClass).filter(DefectClass.class_id == class_id).first()
     if not db_class:
         raise HTTPException(status_code=404, detail="Defect class not found")
 
@@ -35,7 +35,7 @@ def update_defect_class(db: Session, class_id: int, update_data: defect_class_sc
 
 
 def delete_defect_class(db: Session, class_id: int):
-    db_class = db.query(DefectClasses).filter(DefectClasses.class_id == class_id).first()
+    db_class = db.query(DefectClass).filter(DefectClass.class_id == class_id).first()
     if not db_class:
         raise HTTPException(status_code=404, detail="Defect class not found")
 

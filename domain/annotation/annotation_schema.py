@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from typing import Dict
+from typing import Dict, List, Optional
+from datetime import datetime, date
 
 
 class DefectCountInfo(BaseModel):
@@ -15,3 +16,23 @@ class DefectSummaryResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+# 조회 응답용 DefectDataItem 스키마 추가
+class DefectDataItem(BaseModel):
+    image_id: int
+    file_path: str
+    line_id: str
+    camera_id: int
+    captured_at: datetime
+    defect_types: List[str]
+
+    class Config:
+        orm_mode = True
+
+
+# 필터용 QuerySchema 추가
+class DefectDataFilter(BaseModel):
+    dates: Optional[List[date]] = None
+    class_ids: Optional[List[int]] = None
+    camera_ids: Optional[List[int]] = None

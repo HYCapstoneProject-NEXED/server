@@ -29,6 +29,7 @@ class DefectTypeEnum(str, enum.Enum):
     dent = "Dent"
     discoloration = "Discoloration"
 
+
 # 이미지 테이블
 class Image(Base):
     __tablename__ = "Images"
@@ -36,10 +37,11 @@ class Image(Base):
     image_id = Column(Integer, primary_key=True, index=True)
     file_path = Column(String(500), nullable=False)
     date = Column(DateTime, nullable=False)
-    camera_id = Column(Integer, nullable=False)
+    camera_id = Column(Integer, ForeignKey("Cameras.camera_id"), nullable=False)
     dataset_id = Column(Integer, nullable=False)
 
     annotations = relationship("Annotation", back_populates="image")
+    camera = relationship("Camera", back_populates="images")
 
 
 # 어노테이션 테이블 (defect_type 제거 → class_id로 대체)
@@ -58,11 +60,11 @@ class Annotation(Base):
     status = Column(Enum("pending", "completed", name="statusenum"), nullable=False)
 
     image = relationship("Image", back_populates="annotations")
-    defect_class = relationship("DefectClasses", back_populates="annotations")
+    defect_class = relationship("DefectClass", back_populates="annotations")
 
 
 # 결함 클래스 테이블
-class DefectClasses(Base):
+class DefectClass(Base):
     __tablename__ = "DefectClasses"
 
     class_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -70,8 +72,20 @@ class DefectClasses(Base):
     class_color = Column(String(7), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
 
     annotations = relationship("Annotation", back_populates="defect_class")
+
+
+# Camera 테이블 정의
+class Camera(Base):
+    __tablename__ = "Cameras"
+
+    camera_id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
+    line_id = Column(String(50), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+
+    images = relationship("Image", back_populates="camera")  # 🔹 Image와 연결
 
 
 
