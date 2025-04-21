@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from datetime import datetime, date
 
 
@@ -42,6 +42,27 @@ class DefectClassSummaryResponse(BaseModel):
     class_name: str
     class_color: str
     count: int
+
+    class Config:
+        orm_mode = True
+
+class DefectDetail(BaseModel):
+    annotation_id: int
+    class_id: int
+    class_name: str
+    class_color: str
+    conf_score: float
+    bounding_box: Dict[str, Any]
+    status: str
+    user_id: int
+
+class AnnotationDetailResponse(BaseModel):
+    image_id: int
+    file_path: str
+    date: datetime
+    camera_id: int
+    dataset_id: int
+    defects: List[DefectDetail]
 
     class Config:
         orm_mode = True
