@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, cast, Date
+from sqlalchemy import func, cast, Date, select
+from fastapi import HTTPException
 from datetime import datetime, timedelta
-from database.models import Annotation, DefectClasses
+from database.models import Image, Annotation, DefectClasses
 
 
 def get_defect_summary(db: Session):
@@ -56,3 +57,40 @@ def get_defect_summary(db: Session):
         "most_frequent_defect": most_frequent,
         "defect_counts_by_type": by_type
     }
+
+def get_annotation_details_by_image_id(db: Session, image_id: int):
+    annotations = (
+        db.query(Annotation, DefectClasses.class_name, DefectClasses.class_color)
+        .join(DefectClasses, Annotation.class_id == DefectClasses.class_id)
+        .filter(Annotation.image_id == image_id)
+        .all()
+    )
+
+    image_info = db.query(Image).filter(Image.image_id == image_id).first()
+
+    if not image_info:
+        return None
+
+    result = {
+        "image_id": image_info.image_id,
+        "file_path": image_info.file_path,
+        "date": image_info.date,
+        "camera_id": image_info.camera_id,
+        "dataset_id": image_info.dataset_id,
+        "defects": []
+    }
+
+    for annotation, class_name, class_color in annotations:
+        defect_data = {
+            "annotation_id": annotation.annotation_id,
+            "class_id": annotation.class_id,
+            "class_name": class_name,
+            "class_color": class_color,
+            "conf_score": annotation.conf_score,
+            "bounding_box": annotation.bounding_box,
+            "status": annotation.status,
+            "user_id": annotation.user_id
+        }
+        result["defects"].append(defect_data)
+
+    return result
