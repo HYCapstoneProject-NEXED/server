@@ -66,3 +66,22 @@ class AnnotationDetailResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+class ImageSummary(BaseModel):
+    camera_id: int
+    image_id: int
+    file_path: str
+    confidence: Optional[float]
+    count: int
+    status: str
+    bounding_boxes: List[Dict[str, Any]]
+
+    class Config:
+        from_attributes = True
+
+class MainScreenResponse(BaseModel):
+    profile_image: Optional[str]
+    total_images: int
+    pending_images: int
+    completed_images: int
+    image_list: List[ImageSummary]
