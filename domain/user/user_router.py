@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 from database.database import get_db
 from domain.user.auth import create_jwt_token
-from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id
-from domain.user.user_schema import UserBase, UserResponse
+from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id, update_user_info
+from domain.user.user_schema import UserBase, UserResponse, UserUpdate
 from datetime import date
 
 router = APIRouter()
@@ -268,3 +268,16 @@ def get_user_profile(
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+@router.put("/users/{user_id}", response_model=UserResponse)
+def update_user_profile(
+    user_id: int,
+    user_update: UserUpdate,
+    db: Session = Depends(get_db)
+):
+    user = get_user_by_id(db, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    updated_user = update_user_info(db, user, user_update)
+    return updated_user
