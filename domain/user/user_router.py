@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 from database.database import get_db
 from domain.user.auth import create_jwt_token
-from domain.user.user_crud import get_user_by_email, create_user
+from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id
 from domain.user.user_schema import UserBase, UserResponse
 from datetime import date
 
@@ -258,3 +258,13 @@ def naver_complete_profile(
         "message": "Naver user profile completed successfully",
         "user": updated_user
     }
+
+@router.get("/users/{user_id}", response_model=UserResponse)
+def get_user_profile(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    user = get_user_by_id(db, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
