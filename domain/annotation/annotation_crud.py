@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, Date, and_, or_
 from datetime import datetime, timedelta
-from database.models import Annotation, DefectClass, Image, Camera
+from database.models import Annotation, DefectClass, Image, Camera, User
 from collections import defaultdict
 from domain.annotation import annotation_schema
 
@@ -224,3 +224,55 @@ def get_annotation_details_by_image_id(db: Session, image_id: int):
         result["defects"].append(defect_data)
 
     return result
+
+def get_main_data(db: Session, user_id: int):
+    # 1. 현재 로그인된 사용자의 profile_image 가져오기
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        return None
+    
+    # 2. 전체 이미지 개수
+    total_images = db.query(func.count(Image.image_id)).scalar()
+    
+    # 3. pending 상태의 이미지 개수
+    pending_images = db.query(func.count(Image.image_id)).filter(Image.status == "pending").scalar()
+    
+    # 4. completed 상태의 이미지 개수
+    completed_images = db.query(func.count(Image.image_id)).filter(Image.status == "completed").scalar()
+    
+    # 5. 이미지 목록 가져오기
+    images = db.query(
+        Image.camera_id,
+        Image.image_id,
+        Image.file_path,
+        func.min(Annotation.conf_score).label('confidence'),
+        func.count(Annotation.annotation_id).label('count'),
+        Image.status
+    ).outerjoin(Annotation, Image.image_id == Annotation.image_id)\
+     .group_by(Image.camera_id, Image.image_id, Image.file_path, Image.status)\
+     .all()
+    
+    # 각 이미지의 bounding box 정보 가져오기
+    image_list = []
+    for img in images:
+        bounding_boxes = db.query(Annotation.bounding_box)\
+            .filter(Annotation.image_id == img.image_id)\
+            .all()
+        
+        image_list.append({
+            "camera_id": img.camera_id,
+            "image_id": img.image_id,
+            "file_path": img.file_path,
+            "confidence": img.confidence,
+            "count": img.count,
+            "status": img.status,
+            "bounding_boxes": [box[0] for box in bounding_boxes]
+        })
+    
+    return {
+        "profile_image": user.profile_image,
+        "total_images": total_images,
+        "pending_images": pending_images,
+        "completed_images": completed_images,
+        "image_list": image_list
+    }
