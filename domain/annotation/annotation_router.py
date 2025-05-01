@@ -79,3 +79,7 @@ def get_main_screen(
         completed_images=data["completed_images"],
         image_list=image_list
     )
+
+@router.get("/statistics/defect-type", response_model=List[annotation_schema.DefectTypeStatistics])
+def read_defect_type_statistics(db: Session = Depends(get_db)):
+    return annotation_crud.get_defect_type_statistics(db)

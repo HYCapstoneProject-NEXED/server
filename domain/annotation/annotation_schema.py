@@ -102,3 +102,15 @@ class MainScreenResponse(BaseModel):
     pending_images: int
     completed_images: int
     image_list: List[ImageSummary]
+
+
+# 결함 유형별 통계 조회 응답용 스키마
+class DefectTypeStatistics(BaseModel):
+    class_name: str
+    class_color: str
+    count: int
+    percentage: float
+
+    class Config:
+        orm_mode = True
+
