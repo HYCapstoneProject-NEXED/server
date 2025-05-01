@@ -312,3 +312,43 @@ def get_main_data(db: Session, user_id: int):
         "completed_images": completed_images,
         "image_list": image_list
     }
+
+
+# 결함 유형별 통계를 위한 함수
+def get_defect_type_statistics(db: Session):
+    # 전체 결함 주석 개수 구하기
+    total_count = (
+        db.query(func.count(Annotation.annotation_id))
+        .join(Image, Annotation.image_id == Image.image_id)
+        .join(DefectClass, Annotation.class_id == DefectClass.class_id)
+        .filter(Image.status == 'completed', DefectClass.is_active == True)
+        .scalar()
+    )
+
+    if total_count == 0:
+        return []
+
+    # 클래스별 주석 개수 집계
+    results = (
+        db.query(
+            DefectClass.class_name,
+            DefectClass.class_color,
+            func.count(Annotation.annotation_id).label("count")
+        )
+        .join(Annotation, Annotation.class_id == DefectClass.class_id)
+        .join(Image, Annotation.image_id == Image.image_id)
+        .filter(Image.status == 'completed', DefectClass.is_active == True)
+        .group_by(DefectClass.class_id)
+        .all()
+    )
+
+    # 비율 계산 및 리스트 변환
+    return [
+        {
+            "class_name": r.class_name,
+            "class_color": r.class_color,
+            "count": r.count,
+            "percentage": round((r.count / total_count) * 100, 1)
+        }
+        for r in results
+    ]
