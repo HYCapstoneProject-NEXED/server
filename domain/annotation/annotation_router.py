@@ -83,3 +83,9 @@ def get_main_screen(
 @router.get("/statistics/defect-type", response_model=List[annotation_schema.DefectTypeStatistics])
 def read_defect_type_statistics(db: Session = Depends(get_db)):
     return annotation_crud.get_defect_type_statistics(db)
+
+
+@router.get("/statistics/weekly-defect", response_model=annotation_schema.WeekdayDefectSummaryResponse)
+def read_weekly_defect_summary(db: Session = Depends(get_db)):
+    result = annotation_crud.get_weekday_defect_summary(db)
+    return {"result": result}
