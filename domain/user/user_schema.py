@@ -16,6 +16,7 @@ class UserBase(BaseModel):
     bank_name: Optional[str] = None
     bank_account: Optional[str] = None
     terms_accepted: Optional[bool] = False  # 기본값 False
+    profile_image: Optional[str] = None  # 프로필 이미지 경로, 선택 사항
 
 
 # 사용자 응답 스키마 (user_id 포함)
@@ -36,4 +37,5 @@ class UserUpdate(BaseModel):
     bank_name: Optional[str]
     bank_account: Optional[str]
     terms_accepted: Optional[bool]  # 헉 여기를 true로 하면 아까 그거 빼도 되지 않나?
+    profile_image: Optional[str]  # 프로필 이미지 경로, 선택 사항
 

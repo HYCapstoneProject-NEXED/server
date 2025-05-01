@@ -20,6 +20,7 @@ class User(Base):
     bank_name = Column(String(255), nullable=False)  # 은행명, 필수
     bank_account = Column(String(255), unique=True, nullable=False)  # 계좌번호, 중복 불가능, 필수
     terms_accepted = Column(Boolean, nullable=False)  # 약관 동의, 필수
+    profile_image = Column(String(500), nullable=True)  # 프로필 이미지 경로, 선택 사항
 
 
 # 결함 유형 Enum
@@ -28,11 +29,6 @@ class DefectTypeEnum(str, enum.Enum):
     scratch = "Scratch"
     dent = "Dent"
     discoloration = "Discoloration"
-
-# Enum 정의 (주석 확정/수정 필요 유무)
-class ImageStatusEnum(str, enum.Enum):
-    pending = "pending"
-    completed = "completed"
 
 
 # 이미지 테이블
@@ -44,7 +40,7 @@ class Image(Base):
     date = Column(DateTime, nullable=False)
     camera_id = Column(Integer, ForeignKey("Cameras.camera_id"), nullable=False)
     dataset_id = Column(Integer, nullable=False)
-    status = Column(Enum(ImageStatusEnum), nullable=False, default=ImageStatusEnum.pending)
+    status = Column(Enum("pending", "completed", name="statusenum"), nullable=False, default="pending")
 
     annotations = relationship("Annotation", back_populates="image")
     camera = relationship("Camera", back_populates="images")

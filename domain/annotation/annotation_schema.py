@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from datetime import datetime, date
 
 
@@ -58,3 +58,47 @@ class RealtimeCheckResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class DefectDetail(BaseModel):
+    annotation_id: int
+    class_id: int
+    class_name: str
+    class_color: str
+    conf_score: float
+    bounding_box: Dict[str, Any]
+    status: str
+    user_id: int
+
+
+class AnnotationDetailResponse(BaseModel):
+    image_id: int
+    file_path: str
+    date: datetime
+    camera_id: int
+    dataset_id: int
+    defects: List[DefectDetail]
+
+    class Config:
+        orm_mode = True
+
+
+class ImageSummary(BaseModel):
+    camera_id: int
+    image_id: int
+    file_path: str
+    confidence: Optional[float]
+    count: int
+    status: str
+    bounding_boxes: List[Dict[str, Any]]
+
+    class Config:
+        from_attributes = True
+
+
+class MainScreenResponse(BaseModel):
+    profile_image: Optional[str]
+    total_images: int
+    pending_images: int
+    completed_images: int
+    image_list: List[ImageSummary]
