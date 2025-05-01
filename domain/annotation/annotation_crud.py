@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, cast, Date, and_, or_
+from sqlalchemy import func, cast, Date, and_, or_, desc
 from datetime import datetime, timedelta
 from database.models import Annotation, DefectClass, Image, Camera, User
 from collections import defaultdict
@@ -188,6 +188,42 @@ def get_defect_class_summary(db: Session):
         ) for row in results
     ]
 
+
+# 실시간 결함 탐지 이력을 조회하는 함수
+def get_recent_defect_checks(db: Session, limit: int = 10):
+    # 최신 이미지 기준으로 정렬된 서브쿼리
+    subquery = (
+        db.query(
+            Image.image_id,
+            Image.file_path,
+            Image.date,
+            Camera.line_name.label("line_name"),
+            Camera.camera_id
+        )
+        .join(Camera, Image.camera_id == Camera.camera_id)
+        .order_by(desc(Image.date))
+        .limit(limit)
+        .subquery()
+    )
+
+    # 이미지 ID를 기준으로 결함 유형(class_name)을 그룹화해서 조회
+    result = (
+        db.query(
+            subquery.c.file_path.label("image_url"),
+            subquery.c.line_name,
+            subquery.c.camera_id,
+            subquery.c.date.label("time"),
+            func.group_concat(DefectClass.class_name).label("types")
+        )
+        .join(Annotation, Annotation.image_id == subquery.c.image_id)
+        .join(DefectClass, Annotation.class_id == DefectClass.class_id)
+        .group_by(subquery.c.image_id)
+        .all()
+    )
+
+    return result
+
+
 def get_annotation_details_by_image_id(db: Session, image_id: int):
     annotations = (
         db.query(Annotation, DefectClass.class_name, DefectClass.class_color)
@@ -230,16 +266,16 @@ def get_main_data(db: Session, user_id: int):
     user = db.query(User).filter(User.user_id == user_id).first()
     if not user:
         return None
-    
+
     # 2. 전체 이미지 개수
     total_images = db.query(func.count(Image.image_id)).scalar()
-    
+
     # 3. pending 상태의 이미지 개수
     pending_images = db.query(func.count(Image.image_id)).filter(Image.status == "pending").scalar()
-    
+
     # 4. completed 상태의 이미지 개수
     completed_images = db.query(func.count(Image.image_id)).filter(Image.status == "completed").scalar()
-    
+
     # 5. 이미지 목록 가져오기
     images = db.query(
         Image.camera_id,
@@ -251,14 +287,14 @@ def get_main_data(db: Session, user_id: int):
     ).outerjoin(Annotation, Image.image_id == Annotation.image_id)\
      .group_by(Image.camera_id, Image.image_id, Image.file_path, Image.status)\
      .all()
-    
+
     # 각 이미지의 bounding box 정보 가져오기
     image_list = []
     for img in images:
         bounding_boxes = db.query(Annotation.bounding_box)\
             .filter(Annotation.image_id == img.image_id)\
             .all()
-        
+
         image_list.append({
             "camera_id": img.camera_id,
             "image_id": img.image_id,
@@ -268,7 +304,7 @@ def get_main_data(db: Session, user_id: int):
             "status": img.status,
             "bounding_boxes": [box[0] for box in bounding_boxes]
         })
-    
+
     return {
         "profile_image": user.profile_image,
         "total_images": total_images,

@@ -83,7 +83,7 @@ class Camera(Base):
     __tablename__ = "Cameras"
 
     camera_id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
-    line_id = Column(String(50), nullable=False)
+    line_name = Column(String(50), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
 
     images = relationship("Image", back_populates="camera")  # 🔹 Image와 연결
