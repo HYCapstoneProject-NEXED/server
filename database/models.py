@@ -29,6 +29,11 @@ class DefectTypeEnum(str, enum.Enum):
     dent = "Dent"
     discoloration = "Discoloration"
 
+# Enum 정의 (주석 확정/수정 필요 유무)
+class ImageStatusEnum(str, enum.Enum):
+    pending = "pending"
+    completed = "completed"
+
 
 # 이미지 테이블
 class Image(Base):
@@ -39,6 +44,7 @@ class Image(Base):
     date = Column(DateTime, nullable=False)
     camera_id = Column(Integer, ForeignKey("Cameras.camera_id"), nullable=False)
     dataset_id = Column(Integer, nullable=False)
+    status = Column(Enum(ImageStatusEnum), nullable=False, default=ImageStatusEnum.pending)
 
     annotations = relationship("Annotation", back_populates="image")
     camera = relationship("Camera", back_populates="images")
@@ -57,7 +63,6 @@ class Annotation(Base):
     conf_score = Column(Float, nullable=True)
     bounding_box = Column(JSON, nullable=False)
     user_id = Column(Integer, ForeignKey("Users.user_id"), nullable=True)
-    status = Column(Enum("pending", "completed", name="statusenum"), nullable=False)
 
     image = relationship("Image", back_populates="annotations")
     defect_class = relationship("DefectClass", back_populates="annotations")
@@ -82,7 +87,7 @@ class Camera(Base):
     __tablename__ = "Cameras"
 
     camera_id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
-    line_id = Column(String(50), nullable=False)
+    line_name = Column(String(50), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
 
     images = relationship("Image", back_populates="camera")  # 🔹 Image와 연결

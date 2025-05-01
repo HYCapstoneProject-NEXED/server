@@ -24,3 +24,19 @@ def get_defect_data_list_api(
 @router.get("/class-summary", response_model=list[annotation_schema.DefectClassSummaryResponse])
 def read_defect_class_summary(db: Session = Depends(get_db)):
     return annotation_crud.get_defect_class_summary(db)
+
+@router.get("/realtime-check", response_model=list[annotation_schema.RealtimeCheckResponse])
+def get_realtime_check_list(db: Session = Depends(get_db)):
+    raw_data = annotation_crud.get_recent_defect_checks(db)
+
+    result = []
+    for row in raw_data:
+        result.append({
+            "image_url": row.image_url,
+            "line_name": row.line_name,
+            "camera_id": row.camera_id,
+            "time": row.time.strftime("PM %I:%M:%S"),  # 🕒 시간 포맷 변경
+            "type": row.types.split(",") if row.types else []  # 결함 종류 여러 개
+        })
+
+    return result

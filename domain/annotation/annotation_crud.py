@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, cast, Date, and_, or_
+from sqlalchemy import func, cast, Date, and_, or_, desc
 from datetime import datetime, timedelta
 from database.models import Annotation, DefectClass, Image, Camera
 from collections import defaultdict
@@ -187,3 +187,38 @@ def get_defect_class_summary(db: Session):
             count=row.count
         ) for row in results
     ]
+
+
+# 실시간 결함 탐지 이력을 조회하는 함수
+def get_recent_defect_checks(db: Session, limit: int = 10):
+    # 최신 이미지 기준으로 정렬된 서브쿼리
+    subquery = (
+        db.query(
+            Image.image_id,
+            Image.file_path,
+            Image.date,
+            Camera.line_name.label("line_name"),
+            Camera.camera_id
+        )
+        .join(Camera, Image.camera_id == Camera.camera_id)
+        .order_by(desc(Image.date))
+        .limit(limit)
+        .subquery()
+    )
+
+    # 이미지 ID를 기준으로 결함 유형(class_name)을 그룹화해서 조회
+    result = (
+        db.query(
+            subquery.c.file_path.label("image_url"),
+            subquery.c.line_name,
+            subquery.c.camera_id,
+            subquery.c.date.label("time"),
+            func.group_concat(DefectClass.class_name).label("types")
+        )
+        .join(Annotation, Annotation.image_id == subquery.c.image_id)
+        .join(DefectClass, Annotation.class_id == DefectClass.class_id)
+        .group_by(subquery.c.image_id)
+        .all()
+    )
+
+    return result

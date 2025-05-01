@@ -37,11 +37,24 @@ class DefectDataFilter(BaseModel):
     class_ids: Optional[List[int]] = None
     camera_ids: Optional[List[int]] = None
 
+
 # 결함 개요 조회 응답용 스키마
 class DefectClassSummaryResponse(BaseModel):
     class_name: str
     class_color: str
     count: int
+
+    class Config:
+        orm_mode = True
+
+
+# 실시간 결함 탐지 이력 조회 응답용 스키마
+class RealtimeCheckResponse(BaseModel):
+    image_url: str  # 이미지 파일 경로
+    line_name: str  # 카메라 라인 id
+    camera_id: int  # 카메라 id
+    time: str  # annotation 생성 시각
+    type: List[str]  # 결함 종류 리스트 ex: ["Crack", "Burr"])
 
     class Config:
         orm_mode = True
