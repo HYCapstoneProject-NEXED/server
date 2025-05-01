@@ -352,3 +352,45 @@ def get_defect_type_statistics(db: Session):
         }
         for r in results
     ]
+
+
+# 주간 요일별 결함 통계를 위한 함수
+def get_weekday_defect_summary(db: Session):
+    raw = (
+        db.query(
+            func.date_format(Image.date, "%a").label("day"),  # Image.date를 기준으로 요일 문자열 추출 (Mon, Tue, ...)
+            DefectClass.class_name,
+            DefectClass.class_color,
+            func.count(Annotation.annotation_id).label("count")
+        )
+        .join(Image, Annotation.image_id == Image.image_id)
+        .join(DefectClass, Annotation.class_id == DefectClass.class_id)
+        .filter(
+            Image.status == "completed",  # 작업 완료된 이미지만
+            DefectClass.is_active == True  # 활성화된 결함 클래스만
+        )
+        .group_by("day", DefectClass.class_id)  # 같은 요일 + 같은 결함 클래스별로 그룹을 나눔
+        .all()
+    )
+
+    # 가공 단계
+    result_dict = {}
+    for day, class_name, class_color, count in raw:  # 요일별 데이터를 담을 임시 딕셔너리
+        if day not in result_dict:
+            result_dict[day] = {
+                "day": day,
+                "total": 0,
+                "defect_counts": []
+            }
+        result_dict[day]["total"] += count  # 같은 요일끼리 total에 누적
+        result_dict[day]["defect_counts"].append({  # 요일별로 결함 클래스별 집계 정보 리스트 추가
+            "class_name": class_name,
+            "class_color": class_color,
+            "count": count
+        })
+
+    # 요일 순 정렬 및 반환
+    weekday_order = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    result = [result_dict[day] for day in weekday_order if day in result_dict]
+
+    return result

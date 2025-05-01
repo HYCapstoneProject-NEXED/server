@@ -114,3 +114,18 @@ class DefectTypeStatistics(BaseModel):
     class Config:
         orm_mode = True
 
+
+# 주간 요일별 결함 통계 조회 응답용 스키마
+class DefectCount(BaseModel):
+    class_name: str
+    class_color: str
+    count: int
+
+class WeekdayDefectSummary(BaseModel):
+    day: str
+    total: int
+    defect_counts: List[DefectCount]
+
+class WeekdayDefectSummaryResponse(BaseModel):
+    result: List[WeekdayDefectSummary]
+
