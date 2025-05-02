@@ -1,9 +1,11 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, cast, Date, and_, or_, desc
+from sqlalchemy import func, cast, Date, and_, or_, desc, literal, String
 from datetime import datetime, timedelta
 from database.models import Annotation, DefectClass, Image, Camera, User
 from collections import defaultdict
 from domain.annotation import annotation_schema
+from typing import List, Optional
+from datetime import date
 
 
 def get_defect_summary(db: Session):
@@ -394,3 +396,80 @@ def get_weekday_defect_summary(db: Session):
     result = [result_dict[day] for day in weekday_order if day in result_dict]
 
     return result
+
+
+# 기간별 결함 통계를 위한 함수
+def get_defect_statistics_by_period(
+    db: Session,
+    start_date: date,
+    end_date: date,
+    unit: str,
+    defect_types: Optional[List[str]] = None,
+    camera_ids: Optional[List[int]] = None
+):
+    # 필터 충돌 방지
+    if defect_types and camera_ids:
+        raise ValueError("defect_type과 camera_id는 동시에 필터링할 수 없습니다.")
+
+    # 집계 단위에 따라 날짜 포맷 결정
+    if unit in ("week", "month", "custom"):  # 일별
+        date_format = "%Y-%m-%d"
+    elif unit == "year":  # 월별
+        date_format = "%Y-%m"
+    else:
+        raise ValueError("unit은 'week', 'month', 'year', 'custom' 중 하나여야 합니다.")
+
+    # 기본 쿼리 시작
+    query = db.query(
+        func.date_format(Image.date, date_format).label("period"),
+        func.count().label("defect_count")
+    ).select_from(Annotation).join(Image, Annotation.image_id == Image.image_id)
+
+    # 결함 유형 필터
+    if defect_types:
+        query = query.join(
+            DefectClass, Annotation.class_id == DefectClass.class_id
+        ).filter(
+            DefectClass.class_name.in_(defect_types)
+        ).add_columns(
+            DefectClass.class_name.label("label"),
+            DefectClass.class_color.label("class_color")
+        )
+        group_by_cols = ["period", "label", "class_color"]
+
+    # 카메라 ID 필터
+    elif camera_ids:
+        query = query.filter(
+            Image.camera_id.in_(camera_ids)
+        ).add_columns(
+            func.cast(Image.camera_id, String).label("label"),
+            literal(None).label("class_color")
+        )
+        group_by_cols = ["period", "label"]
+
+    # 전체 집계 (필터 없음)
+    else:
+        query = query.add_columns(
+            literal(None).label("label"),
+            literal(None).label("class_color")
+        )
+        group_by_cols = ["period"]
+
+    # completed 상태만 집계
+    query = query.filter(Image.status == 'completed')
+
+    # 날짜 필터링
+    query = query.filter(Image.date.between(start_date, end_date))
+    query = query.group_by(*group_by_cols).order_by("period", "label")
+
+    result = query.all()
+
+    return [
+        {
+            "date": row.period,
+            "defect_count": row.defect_count,
+            **({"label": row.label} if row.label is not None else {}),
+            **({"class_color": row.class_color} if row.class_color is not None else {})
+        }
+        for row in result
+    ]

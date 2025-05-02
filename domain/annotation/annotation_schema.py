@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Literal
 from datetime import datetime, date
 
 
@@ -129,3 +129,24 @@ class WeekdayDefectSummary(BaseModel):
 class WeekdayDefectSummaryResponse(BaseModel):
     result: List[WeekdayDefectSummary]
 
+
+# 기간별 결함 통계 조회 응답용 스키마
+class DateRange(BaseModel):
+    start: date
+    end: date
+
+class Filters(BaseModel):
+    defect_type: Optional[List[str]] = None
+    camera_ids: Optional[List[int]] = None
+
+class DefectStatisticsItem(BaseModel):
+    date: Optional[str] = None  # YYYY-MM-DD (week/month) or YYYY-MM (year)
+    label: Optional[str] = None  # defect_type or camera_id
+    defect_count: int
+    class_color: Optional[str] = None  # defect_type일 경우에만 포함
+
+class DefectStatisticsResponse(BaseModel):
+    date_range: DateRange
+    unit: Literal["week", "month", "year", "custom"]
+    filters: Filters
+    data: List[DefectStatisticsItem]
