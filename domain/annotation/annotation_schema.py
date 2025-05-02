@@ -150,3 +150,30 @@ class DefectStatisticsResponse(BaseModel):
     unit: Literal["week", "month", "year", "custom"]
     filters: Filters
     data: List[DefectStatisticsItem]
+
+
+class DeleteImagesRequest(BaseModel):
+    image_ids: List[int]
+
+class DeleteImagesResponse(BaseModel):
+    success: bool
+    message: str
+    deleted_ids: List[int]
+
+    class Config:
+        orm_mode = True
+
+
+class UpdateImageStatusRequest(BaseModel):
+    image_id: int
+    status: str  # "pending" 또는 "completed"
+
+class UpdateImageStatusResponse(BaseModel):
+    success: bool
+    message: str
+    image_id: int
+    new_status: str
+
+    class Config:
+        orm_mode = True
+

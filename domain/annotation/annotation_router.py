@@ -147,3 +147,17 @@ def read_defect_statistics_by_period(
         },
         "data": data
     }
+
+@router.delete("/images", response_model=annotation_schema.DeleteImagesResponse)
+def delete_images_api(
+    request: annotation_schema.DeleteImagesRequest,
+    db: Session = Depends(get_db)
+):
+    return annotation_crud.delete_images(db, request.image_ids)
+
+@router.patch("/image/status", response_model=annotation_schema.UpdateImageStatusResponse)
+def update_image_status_api(
+    request: annotation_schema.UpdateImageStatusRequest,
+    db: Session = Depends(get_db)
+):
+    return annotation_crud.update_image_status(db, request.image_id, request.status)
