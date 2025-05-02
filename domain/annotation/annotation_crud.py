@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 from database.models import Annotation, DefectClass, Image, Camera, User
 from collections import defaultdict
 from domain.annotation import annotation_schema
+from typing import List
+from fastapi import HTTPException
 
 
 def get_defect_summary(db: Session):
@@ -394,3 +396,30 @@ def get_weekday_defect_summary(db: Session):
     result = [result_dict[day] for day in weekday_order if day in result_dict]
 
     return result
+
+
+def delete_images(db: Session, image_ids: List[int]):
+    # 존재하는 이미지 ID만 필터링
+    existing_images = db.query(Image).filter(Image.image_id.in_(image_ids)).all()
+    existing_image_ids = [img.image_id for img in existing_images]
+    
+    # 존재하지 않는 이미지 ID 찾기
+    not_found_ids = set(image_ids) - set(existing_image_ids)
+    
+    if not_found_ids:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Images not found: {list(not_found_ids)}"
+        )
+    
+    # 이미지 삭제 (CASCADE로 인해 관련 어노테이션도 자동 삭제)
+    for image in existing_images:
+        db.delete(image)
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Successfully deleted {len(existing_images)} images",
+        "deleted_ids": existing_image_ids
+    }

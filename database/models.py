@@ -42,7 +42,12 @@ class Image(Base):
     dataset_id = Column(Integer, nullable=False)
     status = Column(Enum("pending", "completed", name="statusenum"), nullable=False, default="pending")
 
-    annotations = relationship("Annotation", back_populates="image")
+    annotations = relationship(
+    "Annotation",
+    back_populates="image",
+    cascade="all, delete-orphan",   # 삭제 연쇄 처리
+    passive_deletes=True            # DB에게 cascade 책임 위임
+)
     camera = relationship("Camera", back_populates="images")
 
 
