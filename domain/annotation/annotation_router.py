@@ -89,3 +89,10 @@ def read_defect_type_statistics(db: Session = Depends(get_db)):
 def read_weekly_defect_summary(db: Session = Depends(get_db)):
     result = annotation_crud.get_weekday_defect_summary(db)
     return {"result": result}
+
+@router.delete("/images", response_model=annotation_schema.DeleteImagesResponse)
+def delete_images_api(
+    request: annotation_schema.DeleteImagesRequest,
+    db: Session = Depends(get_db)
+):
+    return annotation_crud.delete_images(db, request.image_ids)

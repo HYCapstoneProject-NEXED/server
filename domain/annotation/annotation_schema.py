@@ -129,3 +129,15 @@ class WeekdayDefectSummary(BaseModel):
 class WeekdayDefectSummaryResponse(BaseModel):
     result: List[WeekdayDefectSummary]
 
+
+class DeleteImagesRequest(BaseModel):
+    image_ids: List[int]
+
+class DeleteImagesResponse(BaseModel):
+    success: bool
+    message: str
+    deleted_ids: List[int]
+
+    class Config:
+        orm_mode = True
+
