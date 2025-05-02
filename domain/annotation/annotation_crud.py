@@ -423,3 +423,32 @@ def delete_images(db: Session, image_ids: List[int]):
         "message": f"Successfully deleted {len(existing_images)} images",
         "deleted_ids": existing_image_ids
     }
+
+
+def update_image_status(db: Session, image_id: int, status: str):
+    # 유효한 상태 값인지 확인
+    if status not in ["pending", "completed"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid status. Status must be either 'pending' or 'completed'"
+        )
+    
+    # 이미지 존재 여부 확인
+    image = db.query(Image).filter(Image.image_id == image_id).first()
+    if not image:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Image with ID {image_id} not found"
+        )
+    
+    # 상태 업데이트
+    image.status = status
+    db.commit()
+    db.refresh(image)
+    
+    return {
+        "success": True,
+        "message": f"Image status updated successfully",
+        "image_id": image_id,
+        "new_status": status
+    }

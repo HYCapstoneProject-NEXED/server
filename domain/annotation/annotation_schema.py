@@ -141,3 +141,17 @@ class DeleteImagesResponse(BaseModel):
     class Config:
         orm_mode = True
 
+
+class UpdateImageStatusRequest(BaseModel):
+    image_id: int
+    status: str  # "pending" 또는 "completed"
+
+class UpdateImageStatusResponse(BaseModel):
+    success: bool
+    message: str
+    image_id: int
+    new_status: str
+
+    class Config:
+        orm_mode = True
+
