@@ -9,9 +9,10 @@ class DefectCountInfo(BaseModel):
     change: int  # 전일 대비 증감 수치
 
 
+# 금일 결함 개요 조회 응답용 스키마
 class DefectSummaryResponse(BaseModel):
     total_defect_count: int
-    most_frequent_defect: str  # class_name
+    most_frequent_defect: Optional[List[str]]  # class_name, 🔹 None 허용, 최다 발생 유형이 여러 개일 수도!
     defect_counts_by_type: Dict[str, DefectCountInfo]  # class_name -> {count, color}
 
     class Config:
