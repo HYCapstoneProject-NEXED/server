@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from database.models import Annotation, DefectClass, Image, Camera, User
 from collections import defaultdict
 from domain.annotation import annotation_schema
-from typing import List, Optional
+from typing import Optional
 from datetime import date
 from typing import List
 from fastapi import HTTPException
@@ -14,7 +14,7 @@ def get_defect_summary(db: Session):
     today = datetime.today().date()
     yesterday = today - timedelta(days=1)
 
-    # 오늘 결함 수 by class
+    # 오늘 결함 수 by class (Images.status='completed' + 날짜 기준은 Images.date)
     today_data = (
         db.query(
             DefectClass.class_name,
@@ -22,7 +22,10 @@ def get_defect_summary(db: Session):
             func.count().label("count")
         )
         .join(Annotation, Annotation.class_id == DefectClass.class_id)
-        .filter(cast(Annotation.date, Date) == today)
+        .join(Image, Annotation.image_id == Image.image_id)
+        .filter(cast(Image.date, Date) == today)
+        .filter(Image.status == 'completed')
+        .filter(DefectClass.is_active == True)  # 🔹 추가
         .group_by(DefectClass.class_id)
         .all()
     )
@@ -34,17 +37,27 @@ def get_defect_summary(db: Session):
             func.count().label("count")
         )
         .join(Annotation, Annotation.class_id == DefectClass.class_id)
-        .filter(cast(Annotation.date, Date) == yesterday)
+        .join(Image, Annotation.image_id == Image.image_id)
+        .filter(cast(Image.date, Date) == yesterday)
+        .filter(Image.status == 'completed')
         .group_by(DefectClass.class_id)
         .all()
     )
 
-    # 딕셔너리 변환
+    # 응답 데이터 구성
     today_dict = {row.class_name: {"count": row.count, "color": row.class_color} for row in today_data}
     yesterday_dict = {row.class_name: row.count for row in yesterday_data}
 
+    # total_defects 계산
     total_defects = sum([info["count"] for info in today_dict.values()])
-    most_frequent = max(today_dict.items(), key=lambda x: x[1]["count"])[0] if today_dict else None
+    # max count 찾기
+    max_count = max((info["count"] for info in today_dict.values()), default=0)
+    # most frequent class_name 리스트 구성
+    most_frequent = [
+        class_name
+        for class_name, info in today_dict.items()
+        if info["count"] == max_count and max_count > 0
+    ]
 
     by_type = {}
     for class_name in set(today_dict.keys()).union(yesterday_dict.keys()):
