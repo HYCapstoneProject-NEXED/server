@@ -18,11 +18,11 @@ class DefectSummaryResponse(BaseModel):
         orm_mode = True
 
 
-# 조회 응답용 DefectDataItem 스키마 추가
+# 결함 데이터 목록 조회 응답용 스키마
 class DefectDataItem(BaseModel):
     image_id: int
     file_path: str
-    line_id: str
+    line_name: str
     camera_id: int
     captured_at: datetime
     defect_types: List[str]
@@ -31,7 +31,7 @@ class DefectDataItem(BaseModel):
         orm_mode = True
 
 
-# 필터용 QuerySchema 추가
+# 결함 데이터 목록 조회 요청용 스키마
 class DefectDataFilter(BaseModel):
     dates: Optional[List[date]] = None
     class_ids: Optional[List[int]] = None

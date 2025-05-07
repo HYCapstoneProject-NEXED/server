@@ -71,13 +71,14 @@ def get_defect_data_list(db: Session):
             Image.image_id,
             Image.file_path,
             Image.date.label("captured_at"),
-            Camera.line_id,
+            Camera.line_name,
             Camera.camera_id,
             DefectClass.class_name
         )
         .join(Camera, Camera.camera_id == Image.camera_id)
         .join(Annotation, Annotation.image_id == Image.image_id)
         .join(DefectClass, DefectClass.class_id == Annotation.class_id)
+        .filter(Image.status == 'completed')  # ✅ "pending" 제외! status="completed"인 이미지만 조회
         .order_by(Image.date.desc())
         .all()
     )
@@ -85,7 +86,7 @@ def get_defect_data_list(db: Session):
     grouped = defaultdict(lambda: {
         "image_id": None,
         "file_path": None,
-        "line_id": None,
+        "line_name": None,
         "camera_id": None,
         "captured_at": None,
         "defect_types": []
@@ -95,7 +96,7 @@ def get_defect_data_list(db: Session):
         key = row.image_id
         grouped[key]["image_id"] = row.image_id
         grouped[key]["file_path"] = row.file_path
-        grouped[key]["line_id"] = row.line_id
+        grouped[key]["line_name"] = row.line_name
         grouped[key]["camera_id"] = row.camera_id
         grouped[key]["captured_at"] = row.captured_at
         grouped[key]["defect_types"].append(row.class_name)
@@ -114,13 +115,14 @@ def get_filtered_defect_data_list(db: Session, filters: annotation_schema.Defect
             Image.image_id,
             Image.file_path,
             Image.date.label("captured_at"),
-            Camera.line_id,
+            Camera.line_name,
             Camera.camera_id,
             DefectClass.class_name
         )
         .join(Camera, Camera.camera_id == Image.camera_id)
         .join(Annotation, Annotation.image_id == Image.image_id)
         .join(DefectClass, DefectClass.class_id == Annotation.class_id)
+        .filter(Image.status == 'completed')  # ✅ "pending" 제외! status="completed"인 이미지만 조회
     )
 
     # ✅ 날짜 필터: 하루 단위 범위 조건 사용 (datetime.date → datetime 범위)
@@ -153,7 +155,7 @@ def get_filtered_defect_data_list(db: Session, filters: annotation_schema.Defect
     grouped = defaultdict(lambda: {
         "image_id": None,
         "file_path": None,
-        "line_id": None,
+        "line_name": None,
         "camera_id": None,
         "captured_at": None,
         "defect_types": []
@@ -163,7 +165,7 @@ def get_filtered_defect_data_list(db: Session, filters: annotation_schema.Defect
         key = row.image_id
         grouped[key]["image_id"] = row.image_id
         grouped[key]["file_path"] = row.file_path
-        grouped[key]["line_id"] = row.line_id
+        grouped[key]["line_name"] = row.line_name
         grouped[key]["camera_id"] = row.camera_id
         grouped[key]["captured_at"] = row.captured_at
         grouped[key]["defect_types"].append(row.class_name)
