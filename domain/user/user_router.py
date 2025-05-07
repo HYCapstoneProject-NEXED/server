@@ -8,12 +8,16 @@ from domain.user.auth import create_jwt_token
 from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id, update_user_info
 from domain.user.user_schema import UserBase, UserResponse, UserUpdate
 from datetime import date
+from domain.user.auth import get_current_user  # ✅ 현재 로그인한 사용자 정보 가져오기
+from config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_REDIRECT_URI
 
-router = APIRouter()
 
+router = APIRouter(
+    tags=["Users"]
+)
 
 # ✅ Google 로그인 URL 제공
-@router.get("/auth/login")
+@router.get("/auth/google/login")
 def google_login():
     return {
         "login_url": f"https://accounts.google.com/o/oauth2/auth"
@@ -28,7 +32,7 @@ def google_login():
 used_codes = set()
 
 
-@router.get("/auth/callback")
+@router.get("/auth/google/callback")
 def google_callback(code: str, db: Session = Depends(get_db)):
     import urllib.parse
     decoded_code = urllib.parse.unquote(code)
@@ -99,19 +103,11 @@ def google_callback(code: str, db: Session = Depends(get_db)):
     }
 
 
-from fastapi import Depends, HTTPException
-from sqlalchemy.orm import Session
-from database.database import get_db
-from domain.user.user_crud import get_user_by_email, update_user_info
-from domain.user.user_schema import UserUpdate
-from domain.user.auth import get_current_user  # ✅ 현재 로그인한 사용자 정보 가져오기
-
-
-@router.post("/auth/signup")
-def complete_profile(
+@router.post("/auth/google/signup")
+def google_complete_profile(
         user_update: UserUpdate,
         db: Session = Depends(get_db),
-        current_user=Depends(get_current_user)  # ✅ JWT에서 현재 로그인한 사용자 가져오기
+        current_user = Depends(get_current_user)  # ✅ JWT에서 현재 로그인한 사용자 가져오기
 ):
     """
     ✅ 사용자가 필수 정보를 입력하여 회원가입을 완료하는 API (이메일 자동 식별)
@@ -136,15 +132,6 @@ def complete_profile(
 
     return {"message": "User profile completed successfully", "user": updated_user}
 
-
-
-from config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_REDIRECT_URI
-from database.database import get_db
-from domain.user.auth import create_jwt_token
-from domain.user.user_crud import get_user_by_email, create_user
-from domain.user.user_schema import UserBase, UserResponse
-
-router = APIRouter()
 
 # ✅ 네이버 로그인 URL 제공
 @router.get("/auth/naver/login")

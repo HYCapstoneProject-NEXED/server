@@ -22,6 +22,7 @@ class UserBase(BaseModel):
 # 사용자 응답 스키마 (user_id 포함)
 class UserResponse(UserBase):
     user_id: int
+    is_active: bool  # 유저 활성 여부 (회원가입 승인 전까지 false)
 
     model_config = ConfigDict(from_attributes=True)  # 📌 Pydantic v2 호환을 위해 추가!
 
@@ -31,11 +32,11 @@ class UserUpdate(BaseModel):
     user_type: Optional[str]
     birthdate: Optional[date]
     nationality: Optional[str]
-    address: Optional[str]  # 선택 사항s
+    address: Optional[str]  # 선택 사항
     company_name: Optional[str]
     factory_name: Optional[str]
     bank_name: Optional[str]
     bank_account: Optional[str]
-    terms_accepted: Optional[bool]  # 헉 여기를 true로 하면 아까 그거 빼도 되지 않나?
+    terms_accepted: Optional[bool]
     profile_image: Optional[str]  # 프로필 이미지 경로, 선택 사항
 
