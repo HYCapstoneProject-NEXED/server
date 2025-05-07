@@ -5,7 +5,12 @@ from domain.defect_class import defect_class_schema
 
 
 def get_all_defect_classes(db: Session):
-    return db.query(DefectClass).order_by(DefectClass.created_at).all()
+    return (
+        db.query(DefectClass)
+        .filter(DefectClass.is_active == True)   # ✅ 필터 추가
+        .order_by(DefectClass.created_at)        # ✅ created_at 기준 오름차순 정렬
+        .all()
+    )
 
 
 def create_defect_class(db: Session, defect_class: defect_class_schema.DefectClassCreate) -> DefectClass:
