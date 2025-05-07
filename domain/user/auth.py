@@ -4,12 +4,10 @@ from config import JWT_SECRET, ALGORITHM
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from database.database import get_db
-from fastapi.security import OAuth2PasswordBearer
 from domain.user.user_crud import get_user_by_id  # ✅ user_id로 조회하는 함수 사용
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-# ✅ OAuth2PasswordBearer 설정 (토큰 엔드포인트 맞게 수정)
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/callback")
-
+bearer_scheme = HTTPBearer()
 
 def create_jwt_token(user_id: int):
     """
@@ -24,24 +22,23 @@ def create_jwt_token(user_id: int):
     return jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    """
-    ✅ JWT 토큰을 디코딩하여 현재 로그인한 사용자 반환
-    """
+# ✅ JWT 토큰을 디코딩하여 현재 로그인한 사용자 반환
+def get_current_user(
+        credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+        db: Session = Depends(get_db)
+):
+    token = credentials.credentials  # "Bearer <token>"에서 토큰 부분만 추출
+
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")  # ✅ `sub` 값을 가져옴 (문자열이므로 변환 필요)
+        user_id = int(payload.get("sub"))
 
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-
-        user_id = int(user_id)  # ✅ `sub` 값이 문자열이므로 int로 변환
-
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
     except ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")  # ✅ 만료된 토큰 처리
-
+        raise HTTPException(status_code=401, detail="Token expired")
     except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+        raise HTTPException(status_code=401, detail="Invalid token")
 
     # ✅ user_id를 기반으로 DB에서 사용자 찾기
     user = get_user_by_id(db, user_id)

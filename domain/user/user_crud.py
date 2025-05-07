@@ -1,15 +1,16 @@
 from sqlalchemy.orm import Session
 from database.models import User
 from domain.user.user_schema import UserBase
+from domain.user.user_schema import UserUpdate
 
 # 특정 Google 이메일을 가진 사용자 조회
 def get_user_by_email(db: Session, google_email: str):
     return db.query(User).filter(User.google_email == google_email).first()
 
-from sqlalchemy.orm import Session
 
 def get_user_by_id(db: Session, user_id: int):
     return db.query(User).filter(User.user_id == user_id).first()
+
 
 # 사용자 등록
 def create_user(db: Session, user_data: UserBase):
@@ -25,15 +26,14 @@ def create_user(db: Session, user_data: UserBase):
         bank_name=user_data.bank_name,
         bank_account=user_data.bank_account,
         terms_accepted=user_data.terms_accepted,
+        profile_image=user_data.profile_image,
+        is_active=False  # ✅ 항상 False로 고정
     )
     db.add(user)
     db.commit()
     db.refresh(user)
     return user
 
-from sqlalchemy.orm import Session
-from domain.user.user_schema import UserUpdate
-from database.models import User
 
 def update_user_info(db: Session, user: User, user_update: UserUpdate) -> User:
     """
@@ -50,6 +50,7 @@ def update_user_info(db: Session, user: User, user_update: UserUpdate) -> User:
     user.bank_name = user_update.bank_name
     user.bank_account = user_update.bank_account
     user.terms_accepted = user_update.terms_accepted  # 약관 동의 여부
+    user.profile_image = user_update.profile_image
 
     db.commit()
     db.refresh(user)  # 변경 사항 반영

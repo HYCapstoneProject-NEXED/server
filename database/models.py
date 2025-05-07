@@ -21,6 +21,7 @@ class User(Base):
     bank_account = Column(String(255), unique=True, nullable=False)  # 계좌번호, 중복 불가능, 필수
     terms_accepted = Column(Boolean, nullable=False)  # 약관 동의, 필수
     profile_image = Column(String(500), nullable=True)  # 프로필 이미지 경로, 선택 사항
+    is_active = Column(Boolean, nullable=False, default=True)  # 유저 활성 여부, 필수
 
 
 # 결함 유형 Enum
