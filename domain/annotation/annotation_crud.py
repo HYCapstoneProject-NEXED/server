@@ -25,7 +25,6 @@ def get_defect_summary(db: Session):
         .join(Image, Annotation.image_id == Image.image_id)
         .filter(cast(Image.date, Date) == today)
         .filter(Image.status == 'completed')
-        .filter(DefectClass.is_active == True)  # 🔹 추가
         .group_by(DefectClass.class_id)
         .all()
     )
