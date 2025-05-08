@@ -16,7 +16,8 @@ def get_all_defect_classes(db: Session):
 def create_defect_class(db: Session, defect_class: defect_class_schema.DefectClassCreate) -> DefectClass:
     db_class = DefectClass(
         class_name=defect_class.class_name,
-        class_color=defect_class.class_color
+        class_color=defect_class.class_color,
+        is_active=True  # ✅ 활성 상태로 생성
     )
     db.add(db_class)
     db.commit()
