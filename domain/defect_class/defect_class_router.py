@@ -34,3 +34,8 @@ def update_defect_class_api(
 @router.delete("/{class_id}", response_model=defect_class_schema.DeleteResult)
 def delete_defect_class_api(class_id: int, db: Session = Depends(get_db)):
     return defect_class_crud.delete_defect_class(db, class_id)
+
+
+@router.patch("/{class_id}/deactivate", response_model=defect_class_schema.DeleteResult)
+def deactivate_defect_class_api(class_id: int, db: Session = Depends(get_db)):
+    return defect_class_crud.delete_defect_class(db, class_id)
