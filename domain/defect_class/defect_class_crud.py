@@ -42,9 +42,12 @@ def update_defect_class(db: Session, class_id: int, update_data: defect_class_sc
 
 def delete_defect_class(db: Session, class_id: int):
     db_class = db.query(DefectClass).filter(DefectClass.class_id == class_id).first()
+
     if not db_class:
         raise HTTPException(status_code=404, detail="Defect class not found")
 
-    db.delete(db_class)
+    # ✅ 소프트 삭제 처리 (updated_at은 자동으로 갱신됨)
+    db_class.is_active = False
     db.commit()
-    return {"success": True, "message": f"Defect class {class_id} deleted"}
+
+    return {"success": True, "message": f"Defect class {class_id} marked as inactive"}
