@@ -9,6 +9,9 @@ def _set_model(yolo):
     model = yolo
 
 def run_inference(image_path: str):
+    if model is None:
+        raise RuntimeError("YOLO model not initialized. Call _set_model first.")
+    
     results = model(image_path, conf=0.1)[0]
     detections = []
 
