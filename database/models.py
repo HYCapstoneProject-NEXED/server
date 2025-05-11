@@ -3,6 +3,15 @@ from database.database import Base
 from sqlalchemy.orm import relationship
 import enum
 from datetime import datetime
+from sqlalchemy import Table
+
+# 🔹 User-Camera Many-to-Many 중간 테이블
+annotator_camera_association = Table(
+    "AnnotatorCameras",  # ← 테이블 이름 변경
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("Users.user_id", ondelete="CASCADE"), primary_key=True),
+    Column("camera_id", Integer, ForeignKey("Cameras.camera_id", ondelete="CASCADE"), primary_key=True)
+)
 
 
 class User(Base):
@@ -22,6 +31,13 @@ class User(Base):
     terms_accepted = Column(Boolean, nullable=False)  # 약관 동의, 필수
     profile_image = Column(String(500), nullable=True)  # 프로필 이미지 경로, 선택 사항
     is_active = Column(Boolean, nullable=False, default=True)  # 유저 활성 여부, 필수
+
+    # 🔹 Many-to-Many: User ↔ Camera
+    assigned_cameras = relationship(
+        "Camera",
+        secondary=annotator_camera_association,
+        back_populates="annotators"
+    )
 
 
 # 결함 유형 Enum
@@ -93,6 +109,12 @@ class Camera(Base):
     is_active = Column(Boolean, nullable=False, default=True)
 
     images = relationship("Image", back_populates="camera")  # 🔹 Image와 연결
+
+    annotators = relationship(
+        "User",
+        secondary=annotator_camera_association,
+        back_populates="assigned_cameras"
+    )
 
 
 
