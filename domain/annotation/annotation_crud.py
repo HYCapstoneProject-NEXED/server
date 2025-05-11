@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, Date, and_, or_, desc, literal, String
 from datetime import datetime, timedelta
 from database.models import Annotation, DefectClass, Image, Camera, User
+from database.models import annotator_camera_association
 from collections import defaultdict
 from domain.annotation import annotation_schema
 from typing import Optional
@@ -285,16 +286,37 @@ def get_main_data(db: Session, user_id: int):
     if not user:
         return None
 
-    # 2. 전체 이미지 개수
-    total_images = db.query(func.count(Image.image_id)).scalar()
+    # 2. 사용자와 연결된 카메라 목록 가져오기
+    user_cameras = db.query(annotator_camera_association.c.camera_id)\
+        .filter(annotator_camera_association.c.user_id == user_id)\
+        .all()
+    camera_ids = [camera[0] for camera in user_cameras]
 
-    # 3. pending 상태의 이미지 개수
-    pending_images = db.query(func.count(Image.image_id)).filter(Image.status == "pending").scalar()
+    if not camera_ids:
+        return {
+            "profile_image": user.profile_image,
+            "total_images": 0,
+            "pending_images": 0,
+            "completed_images": 0,
+            "image_list": []
+        }
 
-    # 4. completed 상태의 이미지 개수
-    completed_images = db.query(func.count(Image.image_id)).filter(Image.status == "completed").scalar()
+    # 3. 연결된 카메라의 전체 이미지 개수
+    total_images = db.query(func.count(Image.image_id))\
+        .filter(Image.camera_id.in_(camera_ids))\
+        .scalar()
 
-    # 5. 이미지 목록 가져오기
+    # 4. pending 상태의 이미지 개수
+    pending_images = db.query(func.count(Image.image_id))\
+        .filter(Image.camera_id.in_(camera_ids), Image.status == "pending")\
+        .scalar()
+
+    # 5. completed 상태의 이미지 개수
+    completed_images = db.query(func.count(Image.image_id))\
+        .filter(Image.camera_id.in_(camera_ids), Image.status == "completed")\
+        .scalar()
+
+    # 6. 이미지 목록 가져오기 (연결된 카메라의 이미지만)
     images = db.query(
         Image.camera_id,
         Image.image_id,
@@ -303,6 +325,7 @@ def get_main_data(db: Session, user_id: int):
         func.count(Annotation.annotation_id).label('count'),
         Image.status
     ).outerjoin(Annotation, Image.image_id == Annotation.image_id)\
+     .filter(Image.camera_id.in_(camera_ids))\
      .group_by(Image.camera_id, Image.image_id, Image.file_path, Image.status)\
      .all()
 
