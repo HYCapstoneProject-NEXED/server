@@ -1,16 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, Body
 import requests
 import urllib.parse
 from sqlalchemy.orm import Session
 from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 from database.database import get_db
 from domain.user.auth import create_jwt_token
-from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id, update_user_info, get_members
-from domain.user.user_schema import UserBase, UserResponse, UserUpdate, UserSummary, UserTypeEnum
+from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id, update_user_info, get_members, update_user_role
+from domain.user.user_schema import UserBase, UserResponse, UserUpdate, UserSummary, UserTypeFilterEnum, UserRoleUpdate
 from datetime import date
 from domain.user.auth import get_current_user  # ✅ 현재 로그인한 사용자 정보 가져오기
 from config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_REDIRECT_URI
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 
 router = APIRouter(
@@ -272,8 +272,22 @@ def update_user_profile(
 
 @router.get("/users", response_model=List[UserSummary])
 def get_member_list(
-    role: UserTypeEnum = Query(default=UserTypeEnum.all_roles),
+    role: UserTypeFilterEnum = Query(default=UserTypeFilterEnum.all_roles),
     search: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
     return get_members(db=db, role=role, search=search)
+
+
+@router.patch("/users/{user_id}/role", response_model=Dict[str, str])
+def change_user_role(
+    user_id: int = Path(..., description="역할을 변경할 대상 유저의 ID"),
+    request: UserRoleUpdate = Body(...),
+    db: Session = Depends(get_db)
+):
+    updated_user = update_user_role(db, user_id, request.user_type)
+    return {
+        "message": "User role updated successfully",
+        "user_id": str(updated_user.user_id),
+        "new_role": updated_user.user_type
+    }

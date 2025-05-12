@@ -42,12 +42,13 @@ class UserUpdate(BaseModel):
     profile_image: Optional[str]  # 프로필 이미지 경로, 선택 사항
 
 
-class UserTypeEnum(str, Enum):
-    all_roles = "All Roles"
-    admin = "Admin"
-    customer = "Customer"
-    ml_engineer = "ML Engineer"
-    annotator = "Annotator"
+# 조회 필터용 (all_roles 포함)
+class UserTypeFilterEnum(str, Enum):
+    all_roles = "all_roles"
+    admin = "admin"
+    customer = "customer"
+    ml_engineer = "ml_engineer"
+    annotator = "annotator"
 
 
 # 멤버 목록 조회 응답용 스키마
@@ -60,4 +61,17 @@ class UserSummary(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+# 실제 DB 저장용 (all_roles 제외)
+class UserTypeEnum(str, Enum):
+    admin = "admin"
+    customer = "customer"
+    ml_engineer = "ml_engineer"
+    annotator = "annotator"
+
+
+# 멤버 역할 변경 요청용 스키마
+class UserRoleUpdate(BaseModel):
+    user_type: UserTypeEnum
 
