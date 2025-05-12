@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 from database.database import get_db
 from domain.user.auth import create_jwt_token
-from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id, update_user_info, get_members, update_user_role
-from domain.user.user_schema import UserBase, UserResponse, UserUpdate, UserSummary, UserTypeFilterEnum, UserRoleUpdate
+from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id, update_user_info, get_members, update_user_role, deactivate_user
+from domain.user.user_schema import UserBase, UserResponse, UserUpdate, UserSummary, UserTypeFilterEnum, UserRoleUpdate, UserDeleteResponse
 from datetime import date
 from domain.user.auth import get_current_user  # ✅ 현재 로그인한 사용자 정보 가져오기
 from config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_REDIRECT_URI
@@ -278,7 +278,6 @@ def get_member_list(
 ):
     return get_members(db=db, role=role, search=search)
 
-
 @router.patch("/users/{user_id}/role", response_model=Dict[str, str])
 def change_user_role(
     user_id: int = Path(..., description="역할을 변경할 대상 유저의 ID"),
@@ -291,3 +290,7 @@ def change_user_role(
         "user_id": str(updated_user.user_id),
         "new_role": updated_user.user_type
     }
+
+@router.patch("/users/{user_id}/deactivate", response_model=UserDeleteResponse)
+def deactivate_user_endpoint(user_id: int, db: Session = Depends(get_db)):
+    return deactivate_user(db, user_id)

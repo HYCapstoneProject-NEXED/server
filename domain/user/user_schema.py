@@ -75,3 +75,12 @@ class UserTypeEnum(str, Enum):
 class UserRoleUpdate(BaseModel):
     user_type: UserTypeEnum
 
+
+# 멤버 삭제 응답용 스키마
+class UserDeleteResponse(BaseModel):
+    user_id: int
+    is_active: bool
+
+    class Config:
+        orm_mode = True
+

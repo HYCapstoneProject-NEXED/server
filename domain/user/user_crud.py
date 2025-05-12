@@ -3,7 +3,7 @@ from database.models import User
 from domain.user.user_schema import UserBase, UserUpdate, UserTypeFilterEnum, UserTypeEnum
 from typing import List, Optional
 from sqlalchemy import or_
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
 
 # 특정 Google 이메일을 가진 사용자 조회
@@ -96,6 +96,23 @@ def update_user_role(db: Session, user_id: int, new_role: UserTypeEnum) -> User:
         raise HTTPException(status_code=404, detail="User not found")
 
     user.user_type = new_role.value  # Enum → 실제 문자열("admin" 등)로 저장
+    db.commit()
+    db.refresh(user)
+
+    return user
+
+
+# 멤버 삭제(비활성화) 함수
+def deactivate_user(db: Session, user_id: int) -> User:
+    user = db.query(User).filter(User.user_id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already inactive")
+
+    user.is_active = False
     db.commit()
     db.refresh(user)
 
