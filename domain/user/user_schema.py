@@ -43,11 +43,11 @@ class UserUpdate(BaseModel):
 
 
 class UserTypeEnum(str, Enum):
-    all_roles = "All Roles"
-    admin = "Admin"
-    customer = "Customer"
-    ml_engineer = "ML Engineer"
-    annotator = "Annotator"
+    all_roles = "all_roles"
+    admin = "admin"
+    customer = "customer"
+    ml_engineer = "ml_engineer"
+    annotator = "annotator"
 
 
 # 멤버 목록 조회 응답용 스키마
