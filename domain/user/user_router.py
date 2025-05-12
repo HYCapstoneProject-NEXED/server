@@ -1,15 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 import requests
 import urllib.parse
 from sqlalchemy.orm import Session
 from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 from database.database import get_db
 from domain.user.auth import create_jwt_token
-from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id, update_user_info
-from domain.user.user_schema import UserBase, UserResponse, UserUpdate
+from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id, update_user_info, get_members
+from domain.user.user_schema import UserBase, UserResponse, UserUpdate, UserSummary, UserTypeEnum
 from datetime import date
 from domain.user.auth import get_current_user  # ✅ 현재 로그인한 사용자 정보 가져오기
 from config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_REDIRECT_URI
+from typing import List, Optional
 
 
 router = APIRouter(
@@ -268,3 +269,11 @@ def update_user_profile(
     
     updated_user = update_user_info(db, user, user_update)
     return updated_user
+
+@router.get("/users", response_model=List[UserSummary])
+def get_member_list(
+    role: UserTypeEnum = Query(default=UserTypeEnum.all_roles),
+    search: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db)
+):
+    return get_members(db=db, role=role, search=search)

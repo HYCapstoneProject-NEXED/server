@@ -1,7 +1,8 @@
 from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional
-from pydantic import BaseModel, EmailStr
 from datetime import date
+from enum import Enum
+
 
 # 사용자 기본 스키마
 class UserBase(BaseModel):
@@ -39,4 +40,24 @@ class UserUpdate(BaseModel):
     bank_account: Optional[str]
     terms_accepted: Optional[bool]
     profile_image: Optional[str]  # 프로필 이미지 경로, 선택 사항
+
+
+class UserTypeEnum(str, Enum):
+    all_roles = "All Roles"
+    admin = "Admin"
+    customer = "Customer"
+    ml_engineer = "ML Engineer"
+    annotator = "Annotator"
+
+
+# 멤버 목록 조회 응답용 스키마
+class UserSummary(BaseModel):
+    user_id: int
+    name: str
+    user_type: str
+    google_email: EmailStr
+    profile_image: Optional[str] = None
+
+    class Config:
+        orm_mode = True
 
