@@ -1,8 +1,9 @@
 from sqlalchemy.orm import Session
 from database.models import User
-from domain.user.user_schema import UserBase, UserUpdate, UserTypeEnum
+from domain.user.user_schema import UserBase, UserUpdate, UserTypeFilterEnum, UserTypeEnum
 from typing import List, Optional
 from sqlalchemy import or_
+from fastapi import HTTPException
 
 
 # 특정 Google 이메일을 가진 사용자 조회
@@ -62,13 +63,13 @@ def update_user_info(db: Session, user: User, user_update: UserUpdate) -> User:
 # 멤버 목록 조회용 함수
 def get_members(
         db: Session,
-        role: Optional[UserTypeEnum] = None,  # 🔹 타입 명시
+        role: Optional[UserTypeFilterEnum] = None,  # 🔹 타입 명시
         search: Optional[str] = None
 ) -> List[User]:
     query = db.query(User).filter(User.is_active == True)  # is_active=True인 멤버만 조회되도록 필터링
 
     # 역할 필터링
-    if isinstance(role, UserTypeEnum) and role != UserTypeEnum.all_roles:
+    if isinstance(role, UserTypeFilterEnum) and role != UserTypeFilterEnum.all_roles:
         query = query.filter(User.user_type == role.value)
 
     # 이름 또는 이메일 검색
@@ -87,3 +88,15 @@ def get_members(
     return query.all()
 
 
+# 멤버 역할 변경 함수
+def update_user_role(db: Session, user_id: int, new_role: UserTypeEnum) -> User:
+    user = db.query(User).filter(User.user_id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.user_type = new_role.value  # Enum → 실제 문자열("admin" 등)로 저장
+    db.commit()
+    db.refresh(user)
+
+    return user
