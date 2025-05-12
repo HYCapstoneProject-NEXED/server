@@ -4,6 +4,8 @@ from sqlalchemy.orm import relationship
 import enum
 from datetime import datetime
 from sqlalchemy import Table
+from sqlalchemy import Enum as SqlEnum
+
 
 # 🔹 User-Camera Many-to-Many 중간 테이블
 annotator_camera_association = Table(
@@ -19,8 +21,12 @@ class User(Base):
 
     user_id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)  # PK, 중복 불가능
     google_email = Column(String(255), unique=True, nullable=False)  # 이메일, 중복 불가능, 필수
-    name = Column(String(255), nullable=False)  # 이름, 중복 가능, 필수
-    user_type = Column(String(255), nullable=False)  # 사용자 타입, 필수
+    name = Column(String(255), nullable=False, index=True)  # 이름, 중복 가능, 필수
+    user_type = Column(  # 사용자 타입, 필수
+        SqlEnum("admin", "customer", "annotator", "ml_engineer", name="user_type_enum"),
+        nullable=False,
+        index=True
+    )
     birthdate = Column(Date, nullable=False)  # 생년월일 (YYYY-MM-DD), 필수
     nationality = Column(String(255), nullable=False)  # 국적, 필수
     address = Column(String(255), nullable=True)  # 주소, 선택 사항
@@ -29,7 +35,7 @@ class User(Base):
     bank_name = Column(String(255), nullable=False)  # 은행명, 필수
     bank_account = Column(String(255), unique=True, nullable=False)  # 계좌번호, 중복 불가능, 필수
     terms_accepted = Column(Boolean, nullable=False)  # 약관 동의, 필수
-    profile_image = Column(String(500), nullable=True)  # 프로필 이미지 경로, 선택 사항
+    profile_image = Column(String(500), nullable=True)  # 프로필 이미지 경로, 선택 사항 (NULL이면 default 이미지)
     is_active = Column(Boolean, nullable=False, default=True)  # 유저 활성 여부, 필수
 
     # 🔹 Many-to-Many: User ↔ Camera
