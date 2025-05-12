@@ -178,3 +178,23 @@ class UpdateImageStatusResponse(BaseModel):
     class Config:
         orm_mode = True
 
+
+class MainScreenFilter(BaseModel):
+    status: Optional[str] = None
+    class_names: Optional[List[str]] = None
+    min_confidence: Optional[float] = None
+    max_confidence: Optional[float] = None
+
+
+class FilteredImageListRequest(BaseModel):
+    class_names: Optional[List[str]] = None
+    status: Optional[str] = None
+    min_confidence: Optional[float] = None
+    max_confidence: Optional[float] = None
+
+class FilteredImageListResponse(BaseModel):
+    image_list: List[ImageSummary]
+
+    class Config:
+        orm_mode = True
+

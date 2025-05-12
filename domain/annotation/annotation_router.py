@@ -80,6 +80,41 @@ def get_main_screen(
         image_list=image_list
     )
 
+@router.get("/main/{user_id}/filtered", response_model=annotation_schema.FilteredImageListResponse)
+def get_filtered_image_list(
+    user_id: int,
+    class_names: Optional[List[str]] = Query(None),
+    status: Optional[str] = Query(None),
+    min_confidence: Optional[float] = Query(None),
+    max_confidence: Optional[float] = Query(None),
+    db: Session = Depends(get_db)
+):
+    filters = annotation_schema.FilteredImageListRequest(
+        class_names=class_names,
+        status=status,
+        min_confidence=min_confidence,
+        max_confidence=max_confidence
+    )
+    
+    data = annotation_crud.get_main_data(db, user_id, filters)
+    if data is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # 결과를 ImageSummary 객체로 변환
+    image_list = [
+        ImageSummary(
+            camera_id=img["camera_id"],
+            image_id=img["image_id"],
+            file_path=img["file_path"],
+            confidence=img["confidence"],
+            count=img["count"],
+            status=img["status"],
+            bounding_boxes=img["bounding_boxes"]
+        ) for img in data["image_list"]
+    ]
+
+    return annotation_schema.FilteredImageListResponse(image_list=image_list)
+
 @router.get("/statistics/defect-type", response_model=List[annotation_schema.DefectTypeStatistics])
 def read_defect_type_statistics(db: Session = Depends(get_db)):
     return annotation_crud.get_defect_type_statistics(db)
