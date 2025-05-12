@@ -280,7 +280,7 @@ def get_annotation_details_by_image_id(db: Session, image_id: int):
 
     return result
 
-def get_main_data(db: Session, user_id: int):
+def get_main_data(db: Session, user_id: int, filters: Optional[annotation_schema.MainScreenFilter] = None):
     # 1. 현재 로그인된 사용자의 profile_image 가져오기
     user = db.query(User).filter(User.user_id == user_id).first()
     if not user:
@@ -301,22 +301,34 @@ def get_main_data(db: Session, user_id: int):
             "image_list": []
         }
 
-    # 3. 연결된 카메라의 전체 이미지 개수
-    total_images = db.query(func.count(Image.image_id))\
-        .filter(Image.camera_id.in_(camera_ids))\
-        .scalar()
+    # 3. 기본 쿼리 구성
+    base_query = db.query(Image).filter(Image.camera_id.in_(camera_ids))
 
-    # 4. pending 상태의 이미지 개수
-    pending_images = db.query(func.count(Image.image_id))\
-        .filter(Image.camera_id.in_(camera_ids), Image.status == "pending")\
-        .scalar()
+    # 4. 필터 적용
+    if filters:
+        if filters.status:
+            base_query = base_query.filter(Image.status == filters.status)
+        if filters.class_names:
+            base_query = base_query.join(Annotation, Image.image_id == Annotation.image_id)\
+                .join(DefectClass, Annotation.class_id == DefectClass.class_id)\
+                .filter(DefectClass.class_name.in_(filters.class_names))
+        if filters.min_confidence is not None or filters.max_confidence is not None:
+            base_query = base_query.join(Annotation, Image.image_id == Annotation.image_id)
+            if filters.min_confidence is not None:
+                base_query = base_query.filter(Annotation.conf_score >= filters.min_confidence)
+            if filters.max_confidence is not None:
+                base_query = base_query.filter(Annotation.conf_score <= filters.max_confidence)
 
-    # 5. completed 상태의 이미지 개수
-    completed_images = db.query(func.count(Image.image_id))\
-        .filter(Image.camera_id.in_(camera_ids), Image.status == "completed")\
-        .scalar()
+    # 5. 연결된 카메라의 전체 이미지 개수
+    total_images = base_query.count()
 
-    # 6. 이미지 목록 가져오기 (연결된 카메라의 이미지만)
+    # 6. pending 상태의 이미지 개수
+    pending_images = base_query.filter(Image.status == "pending").count()
+
+    # 7. completed 상태의 이미지 개수
+    completed_images = base_query.filter(Image.status == "completed").count()
+
+    # 8. 이미지 목록 가져오기
     images = db.query(
         Image.camera_id,
         Image.image_id,
@@ -325,9 +337,22 @@ def get_main_data(db: Session, user_id: int):
         func.count(Annotation.annotation_id).label('count'),
         Image.status
     ).outerjoin(Annotation, Image.image_id == Annotation.image_id)\
-     .filter(Image.camera_id.in_(camera_ids))\
-     .group_by(Image.camera_id, Image.image_id, Image.file_path, Image.status)\
-     .all()
+     .filter(Image.camera_id.in_(camera_ids))
+
+    # 필터 적용
+    if filters:
+        if filters.status:
+            images = images.filter(Image.status == filters.status)
+        if filters.class_names:
+            images = images.join(DefectClass, Annotation.class_id == DefectClass.class_id)\
+                .filter(DefectClass.class_name.in_(filters.class_names))
+        if filters.min_confidence is not None:
+            images = images.filter(Annotation.conf_score >= filters.min_confidence)
+        if filters.max_confidence is not None:
+            images = images.filter(Annotation.conf_score <= filters.max_confidence)
+
+    images = images.group_by(Image.camera_id, Image.image_id, Image.file_path, Image.status)\
+        .all()
 
     # 각 이미지의 bounding box 정보 가져오기
     image_list = []
