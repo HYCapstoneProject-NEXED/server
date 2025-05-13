@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from database.models import User
+from database.models import User, ApprovalStatusEnum
 from domain.user.user_schema import UserBase, UserUpdate, UserTypeFilterEnum, UserTypeEnum
 from typing import List, Optional
 from sqlalchemy import or_
@@ -117,3 +117,16 @@ def deactivate_user(db: Session, user_id: int) -> User:
     db.refresh(user)
 
     return user
+
+
+# 가입 승인 요청 목록 조회 함수
+def get_pending_approval_users(db: Session) -> List[User]:
+    return (
+        db.query(User)
+        .filter(
+            User.approval_status == ApprovalStatusEnum.pending,
+            User.is_active == False
+        )
+        .order_by(User.user_id.asc())
+        .all()
+    )

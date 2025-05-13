@@ -16,6 +16,27 @@ annotator_camera_association = Table(
 )
 
 
+# role Enum
+class UserTypeEnum(str, enum.Enum):
+    admin = "admin"
+    customer = "customer"
+    annotator = "annotator"
+    ml_engineer = "ml_engineer"
+
+
+# 가입 승인 상태 Enum
+class ApprovalStatusEnum(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+
+# 성별 Enum
+class GenderEnum(str, enum.Enum):
+    female = "female"
+    male = "male"
+
+
 class User(Base):
     __tablename__ = "Users"
 
@@ -23,7 +44,7 @@ class User(Base):
     google_email = Column(String(255), unique=True, nullable=False)  # 이메일, 중복 불가능, 필수
     name = Column(String(255), nullable=False, index=True)  # 이름, 중복 가능, 필수
     user_type = Column(  # 사용자 타입, 필수
-        SqlEnum("admin", "customer", "annotator", "ml_engineer", name="user_type_enum"),
+        SqlEnum(UserTypeEnum, name="user_type_enum"),
         nullable=False,
         index=True
     )
@@ -37,6 +58,8 @@ class User(Base):
     terms_accepted = Column(Boolean, nullable=False)  # 약관 동의, 필수
     profile_image = Column(String(500), nullable=True)  # 프로필 이미지 경로, 선택 사항 (NULL이면 default 이미지)
     is_active = Column(Boolean, nullable=False, default=True)  # 유저 활성 여부, 필수
+    approval_status = Column(Enum(ApprovalStatusEnum), default="pending", nullable=False)  # 가입 승인 상태 (pending / approved / rejected), 필수
+    gender = Column(Enum(GenderEnum), nullable=False, default="female")  # 성별(female / male), 필수
 
     # 🔹 Many-to-Many: User ↔ Camera
     assigned_cameras = relationship(

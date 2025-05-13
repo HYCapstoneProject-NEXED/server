@@ -84,3 +84,27 @@ class UserDeleteResponse(BaseModel):
     class Config:
         orm_mode = True
 
+
+class ApprovalStatusEnum(str, Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+
+class GenderEnum(str, Enum):
+    female = "female"
+    male = "male"
+
+
+# 가입 승인 요청 목록 조회 응답용 스키마
+class PendingUserResponse(BaseModel):
+    user_id: int
+    name: str
+    google_email: EmailStr
+    user_type: UserTypeEnum
+    birthdate: date
+    gender: GenderEnum
+
+    class Config:
+        orm_mode = True
+

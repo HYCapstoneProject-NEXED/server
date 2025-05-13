@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 from database.database import get_db
 from domain.user.auth import create_jwt_token
-from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id, update_user_info, get_members, update_user_role, deactivate_user
-from domain.user.user_schema import UserBase, UserResponse, UserUpdate, UserSummary, UserTypeFilterEnum, UserRoleUpdate, UserDeleteResponse
+from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id, update_user_info, get_members, update_user_role, deactivate_user, get_pending_approval_users
+from domain.user.user_schema import UserBase, UserResponse, UserUpdate, UserSummary, UserTypeFilterEnum, UserRoleUpdate, UserDeleteResponse, PendingUserResponse
 from datetime import date
 from domain.user.auth import get_current_user  # ✅ 현재 로그인한 사용자 정보 가져오기
 from config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_REDIRECT_URI
@@ -246,6 +246,10 @@ def naver_complete_profile(
         "message": "Naver user profile completed successfully",
         "user": updated_user
     }
+
+@router.get("/users/pending-approvals", response_model=List[PendingUserResponse])
+def get_pending_approvals(db: Session = Depends(get_db)):
+    return get_pending_approval_users(db)
 
 @router.get("/users/{user_id}", response_model=UserResponse)
 def get_user_profile(
