@@ -273,12 +273,21 @@ def get_annotation_details_by_image_id(db: Session, image_id: int):
             "class_color": class_color,
             "conf_score": annotation.conf_score,
             "bounding_box": annotation.bounding_box,
-            "status": annotation.status,
             "user_id": annotation.user_id
         }
         result["defects"].append(defect_data)
 
     return result
+
+
+def get_annotation_details_by_image_ids(db: Session, image_ids: List[int]):
+    result = []
+    for image_id in image_ids:
+        detail = get_annotation_details_by_image_id(db, image_id)
+        if detail is not None:
+            result.append(detail)
+    return {"details": result}
+
 
 def get_main_data(db: Session, user_id: int, filters: Optional[annotation_schema.MainScreenFilter] = None):
     # 1. 현재 로그인된 사용자의 profile_image 가져오기

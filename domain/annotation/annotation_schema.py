@@ -68,7 +68,6 @@ class DefectDetail(BaseModel):
     class_color: str
     conf_score: float
     bounding_box: Dict[str, Any]
-    status: str
     user_id: int
 
 
@@ -194,6 +193,13 @@ class FilteredImageListRequest(BaseModel):
 
 class FilteredImageListResponse(BaseModel):
     image_list: List[ImageSummary]
+
+    class Config:
+        orm_mode = True
+
+
+class AnnotationDetailListResponse(BaseModel):
+    details: List[AnnotationDetailResponse]
 
     class Config:
         orm_mode = True
