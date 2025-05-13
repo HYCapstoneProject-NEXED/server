@@ -108,3 +108,12 @@ class PendingUserResponse(BaseModel):
     class Config:
         orm_mode = True
 
+
+class ApprovalActionEnum(str, Enum):
+    approve = "approve"
+    reject = "reject"
+
+
+# 가입 승인 처리 요청용 스키마
+class ApprovalRequest(BaseModel):
+    action: ApprovalActionEnum

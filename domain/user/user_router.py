@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 from database.database import get_db
 from domain.user.auth import create_jwt_token
-from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id, update_user_info, get_members, update_user_role, deactivate_user, get_pending_approval_users
-from domain.user.user_schema import UserBase, UserResponse, UserUpdate, UserSummary, UserTypeFilterEnum, UserRoleUpdate, UserDeleteResponse, PendingUserResponse
+from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id, update_user_info, get_members, update_user_role, deactivate_user, get_pending_approval_users, update_user_approval_status
+from domain.user.user_schema import UserBase, UserResponse, UserUpdate, UserSummary, UserTypeFilterEnum, UserRoleUpdate, UserDeleteResponse, PendingUserResponse, ApprovalRequest, ApprovalActionEnum
 from datetime import date
 from domain.user.auth import get_current_user  # ✅ 현재 로그인한 사용자 정보 가져오기
 from config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_REDIRECT_URI
@@ -298,3 +298,14 @@ def change_user_role(
 @router.patch("/users/{user_id}/deactivate", response_model=UserDeleteResponse)
 def deactivate_user_endpoint(user_id: int, db: Session = Depends(get_db)):
     return deactivate_user(db, user_id)
+
+
+@router.patch("/users/{user_id}/approval")
+def handle_approval(user_id: int, req: ApprovalRequest, db: Session = Depends(get_db)):
+    updated_user = update_user_approval_status(db, user_id, req.action)
+
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    action_message = "approved" if req.action == ApprovalActionEnum.approve else "rejected"
+    return {"message": f"User has been {action_message} successfully."}
