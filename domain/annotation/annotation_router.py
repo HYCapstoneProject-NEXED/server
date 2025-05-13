@@ -196,3 +196,10 @@ def update_image_status_api(
     db: Session = Depends(get_db)
 ):
     return annotation_crud.update_image_status(db, request.image_id, request.status)
+
+@router.post("/details", response_model=annotation_schema.AnnotationDetailListResponse)
+def get_multiple_annotation_details(
+    image_ids: List[int],
+    db: Session = Depends(get_db)
+):
+    return annotation_crud.get_annotation_details_by_image_ids(db, image_ids)
