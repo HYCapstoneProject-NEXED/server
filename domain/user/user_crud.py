@@ -130,3 +130,22 @@ def get_pending_approval_users(db: Session) -> List[User]:
         .order_by(User.user_id.asc())
         .all()
     )
+
+
+# 가입 승인/거절 처리 함수
+def update_user_approval_status(db: Session, user_id: int, action: str):
+    user = db.query(User).filter(User.user_id == user_id).first()
+
+    if not user:
+        return None
+
+    if action == "approve":
+        user.approval_status = ApprovalStatusEnum.approved
+        user.is_active = True
+    elif action == "reject":
+        user.approval_status = ApprovalStatusEnum.rejected
+        user.is_active = False
+
+    db.commit()
+    db.refresh(user)
+    return user
