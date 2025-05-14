@@ -11,6 +11,7 @@ def get_user_by_email(db: Session, google_email: str):
     return db.query(User).filter(User.google_email == google_email).first()
 
 
+# 특정 ID를 가진 사용자 조회
 def get_user_by_id(db: Session, user_id: int):
     return db.query(User).filter(User.user_id == user_id).first()
 
@@ -30,7 +31,9 @@ def create_user(db: Session, user_data: UserBase):
         bank_account=user_data.bank_account,
         terms_accepted=user_data.terms_accepted,
         profile_image=user_data.profile_image,
-        is_active=False  # ✅ 항상 False로 고정
+        gender=user_data.gender,
+        is_active=False,  # ✅ 항상 비활성 상태로 시작
+        approval_status=ApprovalStatusEnum.pending  # ✅ 가입 승인 대기 상태로 시작
     )
     db.add(user)
     db.commit()
@@ -47,13 +50,10 @@ def update_user_info(db: Session, user: User, user_update: UserUpdate) -> User:
     user.user_type = user_update.user_type
     user.birthdate = user_update.birthdate
     user.nationality = user_update.nationality
-    user.address = user_update.address  # 주소는 선택 사항
-    user.company_name = user_update.company_name
-    user.factory_name = user_update.factory_name
     user.bank_name = user_update.bank_name
     user.bank_account = user_update.bank_account
     user.terms_accepted = user_update.terms_accepted  # 약관 동의 여부
-    user.profile_image = user_update.profile_image
+    user.gender = user_update.gender
 
     db.commit()
     db.refresh(user)  # 변경 사항 반영

@@ -6,7 +6,7 @@ from config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 from database.database import get_db
 from domain.user.auth import create_jwt_token
 from domain.user.user_crud import get_user_by_email, create_user, get_user_by_id, update_user_info, get_members, update_user_role, deactivate_user, get_pending_approval_users, update_user_approval_status
-from domain.user.user_schema import UserBase, UserResponse, UserUpdate, UserSummary, UserTypeFilterEnum, UserRoleUpdate, UserDeleteResponse, PendingUserResponse, ApprovalRequest, ApprovalActionEnum
+from domain.user.user_schema import UserBase, UserResponse, UserUpdate, UserSummary, UserTypeFilterEnum, UserRoleUpdate, UserDeleteResponse, PendingUserResponse, ApprovalRequest, ApprovalActionEnum, ApprovalStatusEnum
 from datetime import date
 from domain.user.auth import get_current_user  # ✅ 현재 로그인한 사용자 정보 가져오기
 from config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_REDIRECT_URI
@@ -79,26 +79,29 @@ def google_callback(code: str, db: Session = Depends(get_db)):
             factory_name=None,
             bank_name=None,
             bank_account=None,
-            terms_accepted=False  # 약관 동의도 아직 안 함
+            terms_accepted=False,  # 약관 동의도 아직 안 함
+            profile_image=userinfo.get("picture"),  # 구글에서 받아온 사진
+            gender = None
         )
         user = create_user(db, new_user_data)
 
-        # ✅ FastAPI에서 발급한 JWT 토큰 생성
-        jwt_token = create_jwt_token(user.user_id)
+    # 🔷 admin이 삭제한 유저
+    elif user.approval_status == ApprovalStatusEnum.approved and user.is_active is False:
+        raise HTTPException(status_code=403, detail="관리자에 의해 비활성화된 계정입니다. 관리자에게 문의해주세요.")
 
-        return {
-            "message": "Additional user information required",
-            "access_token": jwt_token,  # ✅ Google OAuth 토큰이 아니라 FastAPI JWT 토큰 반환
-            "token_type": "bearer",
-            "user": UserResponse.from_orm(user)
-        }
+    # 🔷 승인 거절된 유저
+    elif user.approval_status == ApprovalStatusEnum.rejected:
+        raise HTTPException(status_code=403, detail="승인 거절된 계정입니다. 관리자에게 문의해주세요.")
 
-    # ✅ 기존 계정이 있다면 JWT 토큰 발급
-    jwt_token = create_jwt_token(user.user_id)
+    # 🔷 가입 승인 대기 중인 유저
+    elif user.approval_status == ApprovalStatusEnum.pending:
+        raise HTTPException(status_code=403, detail="가입 승인 대기 중입니다. 관리자의 승인을 기다려주세요.")
 
+    # ✅ 승인 완료된 유저라면 로그인 허용 (is_active=True)
+    jwt_token = create_jwt_token(user.user_id)  # FastAPI에서 발급한 JWT 토큰 생성
     return {
-        "message": "Login successful",
-        "access_token": jwt_token,
+        "message": "Login successful" if user.is_active else "Additional user information required",
+        "access_token": jwt_token,  # Google OAuth 토큰이 아니라 FastAPI JWT 토큰임
         "token_type": "bearer",
         "user": UserResponse.from_orm(user)
     }
@@ -117,16 +120,31 @@ def google_complete_profile(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # ✅ 필수 정보가 비어있으면 회원가입 완료를 허용하지 않음
+    # ✅ "회사명/공장명" 형식의 문자열을 company_name, factory_name으로 분리
+    if user_update.company_factory and "/" in user_update.company_factory:
+        try:
+            company, factory = user_update.company_factory.split("/", 1)
+            user.company_name = company.strip()
+            user.factory_name = factory.strip()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="회사명/공장명을 '회사명/공장명' 형식으로 입력해주세요.")
+    else:
+        raise HTTPException(status_code=400, detail="회사명/공장명을 '회사명/공장명' 형식으로 입력해주세요.")
+
+    # ✅ 필수 정보가 비어있거나 빈 문자열("")이면 회원가입 거부
     required_fields = [
         user_update.name, user_update.user_type, user_update.birthdate,
-        user_update.nationality, user_update.company_name,
-        user_update.factory_name, user_update.bank_name, user_update.bank_account,
-        user_update.terms_accepted
+        user_update.nationality, user_update.company_factory,
+        user_update.bank_name, user_update.bank_account,
+        user_update.terms_accepted, user_update.gender
     ]
 
-    if any(field is None for field in required_fields):
-        raise HTTPException(status_code=400, detail="All required fields must be filled.")
+    if any(field is None or (isinstance(field, str) and field.strip() == "") for field in required_fields):
+        raise HTTPException(status_code=400, detail="모든 필수 항목을 입력해야 합니다.")
+
+    # ✅ 약관 동의 여부 검사
+    if user_update.terms_accepted is not True:
+        raise HTTPException(status_code=400, detail="약관에 동의해야 회원가입이 가능합니다.")
 
     # ✅ 사용자 정보 업데이트 (필수 정보 입력됨)
     updated_user = update_user_info(db, user, user_update)
