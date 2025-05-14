@@ -34,7 +34,8 @@ class DefectDataItem(BaseModel):
 
 # 결함 데이터 목록 조회 요청용 스키마
 class DefectDataFilter(BaseModel):
-    dates: Optional[List[date]] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     class_ids: Optional[List[int]] = None
     camera_ids: Optional[List[int]] = None
 

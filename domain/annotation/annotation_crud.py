@@ -120,7 +120,7 @@ def get_defect_data_list(db: Session):
 # 결함 데이터 목록 "필터링 조회"를 위한 함수
 def get_filtered_defect_data_list(db: Session, filters: annotation_schema.DefectDataFilter):
     # 👉 아무 필터도 없을 경우 전체 조회로 대체
-    if not filters.dates and not filters.class_ids and not filters.camera_ids:
+    if not (filters.start_date and filters.end_date) and not filters.class_ids and not filters.camera_ids:
         return get_defect_data_list(db)  # 기존 전체 조회 함수 호출
 
     query = (
@@ -138,19 +138,11 @@ def get_filtered_defect_data_list(db: Session, filters: annotation_schema.Defect
         .filter(Image.status == 'completed')  # ✅ "pending" 제외! status="completed"인 이미지만 조회
     )
 
-    # ✅ 날짜 필터: 하루 단위 범위 조건 사용 (datetime.date → datetime 범위)
-    if filters.dates:
-        date_filters = []
-        for date_obj in filters.dates:
-            start = datetime.combine(date_obj, datetime.min.time())
-            end = start + timedelta(days=1)
-            date_filters.append((start, end))
-        query = query.filter(
-            or_(
-                and_(Image.date >= start, Image.date < end)
-                for start, end in date_filters
-            )
-        )
+    # ✅ 날짜 필터(start_date ~ end_date)
+    if filters.start_date and filters.end_date:
+        start_datetime = datetime.combine(filters.start_date, datetime.min.time())
+        end_datetime = datetime.combine(filters.end_date + timedelta(days=1), datetime.min.time())  # 포함 범위
+        query = query.filter(Image.date >= start_datetime, Image.date < end_datetime)
 
     # ✅ 결함 클래스 필터
     if filters.class_ids:
