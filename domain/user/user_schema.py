@@ -117,3 +117,12 @@ class ApprovalActionEnum(str, Enum):
 # 가입 승인 처리 요청용 스키마
 class ApprovalRequest(BaseModel):
     action: ApprovalActionEnum
+
+
+# 작업자별 작업 개요 조회 응답용 스키마
+class WorkerOverview(BaseModel):
+    user_name: str
+    work_count: int
+
+    class Config:
+        orm_mode = True
