@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
-from database.models import User, ApprovalStatusEnum
+from database.models import User, ApprovalStatusEnum, Annotation, Image
 from domain.user.user_schema import UserBase, UserUpdate, UserTypeFilterEnum, UserTypeEnum
 from typing import List, Optional
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from fastapi import HTTPException, status
 
 
@@ -149,3 +149,37 @@ def update_user_approval_status(db: Session, user_id: int, action: str):
     db.commit()
     db.refresh(user)
     return user
+
+
+# 작업자별 작업 개요 조회 함수
+def get_worker_overview(db: Session):
+    # 활성화된 승인된 annotator만 필터링
+    subquery = (
+        db.query(
+            Annotation.user_id.label("user_id"),
+            Annotation.image_id.label("image_id")
+        )
+        .join(Image, Annotation.image_id == Image.image_id)
+        .filter(Image.status == "completed")
+        .distinct(Annotation.user_id, Annotation.image_id)  # 🔹 중복 제거
+        .subquery()
+    )
+
+    # 해당 작업자의 이름과 작업 수 조회
+    result = (
+        db.query(
+            User.name.label("user_name"),
+            func.count(subquery.c.image_id).label("work_count")
+        )
+        .join(subquery, User.user_id == subquery.c.user_id)
+        .filter(
+            User.user_type == "annotator",
+            User.is_active == True,
+            User.approval_status == "approved"
+        )
+        .group_by(User.user_id)
+        .order_by(func.count(subquery.c.image_id).desc())
+        .all()
+    )
+
+    return result
