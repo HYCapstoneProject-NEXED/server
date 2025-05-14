@@ -17,4 +17,13 @@ class TaskAssignmentStats(BaseModel):
     total_images: int
     assigned_images: int
     unassigned_cameras: List[UnassignedCameraStats]
-    annotators: List[AnnotatorStats] 
+    annotators: List[AnnotatorStats]
+
+class CameraImageStats(BaseModel):
+    camera_id: int
+    image_count: int
+
+class UserCameraStats(BaseModel):
+    user_id: int
+    username: str
+    cameras: List[CameraImageStats] 
