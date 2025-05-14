@@ -57,9 +57,16 @@ class User(Base):
     bank_account = Column(String(255), unique=True, nullable=False)  # 계좌번호, 중복 불가능, 필수
     terms_accepted = Column(Boolean, nullable=False)  # 약관 동의, 필수
     profile_image = Column(String(500), nullable=True)  # 프로필 이미지 경로, 선택 사항 (NULL이면 default 이미지)
-    is_active = Column(Boolean, nullable=False, default=True)  # 유저 활성 여부, 필수
-    approval_status = Column(Enum(ApprovalStatusEnum), default="pending", nullable=False)  # 가입 승인 상태 (pending / approved / rejected), 필수
-    gender = Column(Enum(GenderEnum), nullable=False, default="female")  # 성별(female / male), 필수
+    is_active = Column(Boolean, nullable=False, default=False)  # 유저 활성 여부, 필수, 기본값=False
+    approval_status = Column(  # 가입 승인 상태 (pending / approved / rejected), 필수
+        SqlEnum(ApprovalStatusEnum, name="approval_status_enum"),
+        default=ApprovalStatusEnum.pending,
+        nullable=False
+    )
+    gender = Column(  # 성별(female / male), 필수
+        SqlEnum(GenderEnum, name="gender_enum"),
+        nullable=False
+    )
 
     # 🔹 Many-to-Many: User ↔ Camera
     assigned_cameras = relationship(
