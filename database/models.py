@@ -76,14 +76,6 @@ class User(Base):
     )
 
 
-# 결함 유형 Enum
-class DefectTypeEnum(str, enum.Enum):
-    crack = "Crack"
-    scratch = "Scratch"
-    dent = "Dent"
-    discoloration = "Discoloration"
-
-
 # 이미지 테이블
 class Image(Base):
     __tablename__ = "Images"
