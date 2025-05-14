@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, distinct
-from domain.admin.admin_schema import TaskAssignmentStats, AnnotatorStats, UnassignedCameraStats
+from domain.admin.admin_schema import TaskAssignmentStats, AnnotatorStats, UnassignedCameraStats, UserCameraStats, CameraImageStats
 from database.models import Camera, Image, User, annotator_camera_association
 
 class AdminService:
@@ -63,4 +63,33 @@ class AdminService:
             assigned_images=assigned_images,
             unassigned_cameras=unassigned_camera_stats,
             annotators=annotators
+        )
+
+    def get_user_camera_stats(self, user_id: int) -> UserCameraStats:
+        # 사용자 정보 조회
+        user = self.db.query(User).filter(User.user_id == user_id).first()
+        if not user:
+            return None
+
+        # 사용자에게 할당된 카메라와 각 카메라의 이미지 개수 조회
+        camera_stats = self.db.query(
+            Camera.camera_id,
+            func.count(Image.image_id).label('image_count')
+        ).join(annotator_camera_association, Camera.camera_id == annotator_camera_association.c.camera_id)\
+         .outerjoin(Image, Camera.camera_id == Image.camera_id)\
+         .filter(annotator_camera_association.c.user_id == user_id)\
+         .group_by(Camera.camera_id)\
+         .all()
+
+        cameras = [
+            CameraImageStats(
+                camera_id=camera.camera_id,
+                image_count=camera.image_count
+            ) for camera in camera_stats
+        ]
+
+        return UserCameraStats(
+            user_id=user.user_id,
+            username=user.name,
+            cameras=cameras
         ) 
