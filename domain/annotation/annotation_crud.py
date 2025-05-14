@@ -594,3 +594,52 @@ def update_image_status(db: Session, image_id: int, status: str):
         "image_id": image_id,
         "new_status": status
     }
+
+
+# 작업 기록 조회 함수
+def get_annotation_history(db: Session, filters: annotation_schema.AnnotationHistoryFilter):
+    # 서브쿼리: 이미지당 가장 최신 주석 하나 (annotation_id가 가장 큰 것 기준)
+    subquery = (
+        db.query(
+            Annotation.image_id,
+            func.max(Annotation.annotation_id).label("latest_annot_id")
+        )
+        .join(Image, Annotation.image_id == Image.image_id)
+        .filter(Image.status == 'completed')  # 완료된 이미지에 대해서만
+        .group_by(Annotation.image_id)
+        .subquery()
+    )
+
+    # 메인 쿼리: 대표 주석만 조회
+    query = (
+        db.query(
+            Image.image_id,
+            User.name.label("user_name"),
+            Annotation.date.label("annotation_date"),
+            Image.status.label("image_status")
+        )
+        .join(Image, Annotation.image_id == Image.image_id)
+        .join(User, Annotation.user_id == User.user_id)  # 유저 조인
+        .join(subquery, Annotation.annotation_id == subquery.c.latest_annot_id)
+    )
+
+    # 날짜 필터
+    if filters.start_date and filters.end_date:
+        next_day = filters.end_date + timedelta(days=1)
+        query = query.filter(Annotation.date >= filters.start_date)
+        query = query.filter(Annotation.date < next_day)
+
+    # 사용자 필터
+    if filters.user_name not in [None, "", "All"]:
+        query = query.filter(User.name == filters.user_name)
+
+    # 검색
+    search_value = str(filters.search).strip()
+    # 숫자가 들어왔다면 image_id 검색
+    if search_value.isdigit():
+        query = query.filter(Image.image_id == int(search_value))
+    # 그 외는 user name 검색
+    else:
+        query = query.filter(User.name.ilike(f"%{search_value}%"))
+
+    return query.order_by(Annotation.date.desc()).all()

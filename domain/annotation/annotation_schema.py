@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, List, Optional, Any, Literal
+from typing import Dict, List, Optional, Any, Literal, Union
 from datetime import datetime, date
 
 
@@ -204,4 +204,23 @@ class AnnotationDetailListResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+# 작업 기록 조회 응답용 스키마
+class AnnotationHistoryResponse(BaseModel):
+    image_id: int
+    user_name: Optional[str]
+    annotation_date: datetime
+    image_status: str
+
+    class Config:
+        orm_mode = True
+
+
+# 작업 기록 조회 요청용 스키마
+class AnnotationHistoryFilter(BaseModel):
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    user_name: Optional[str] = None
+    search: Optional[Union[str, int]] = None  # image_id (숫자) 또는 user_name (문자열) 검색
 

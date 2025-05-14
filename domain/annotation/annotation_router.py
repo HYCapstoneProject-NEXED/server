@@ -203,3 +203,10 @@ def get_multiple_annotation_details(
     db: Session = Depends(get_db)
 ):
     return annotation_crud.get_annotation_details_by_image_ids(db, image_ids)
+
+@router.post("/history", response_model=List[annotation_schema.AnnotationHistoryResponse])
+def get_annotation_history(
+    filters: annotation_schema.AnnotationHistoryFilter,
+    db: Session = Depends(get_db)
+):
+    return annotation_crud.get_annotation_history(db, filters)
