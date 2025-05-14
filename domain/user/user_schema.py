@@ -126,3 +126,12 @@ class WorkerOverview(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+# 작업 기록 조회 필터용 사용자 목록 조회 응답용 스키마
+class AnnotatorName(BaseModel):
+    user_id: int
+    name: str
+
+    class Config:
+        orm_mode = True

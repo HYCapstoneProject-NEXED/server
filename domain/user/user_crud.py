@@ -183,3 +183,14 @@ def get_worker_overview(db: Session):
     )
 
     return result
+
+
+# 작업 기록 조회 필터용 사용자 목록 조회 함수
+def get_active_annotators(db: Session) -> List[User]:
+    return (
+        db.query(User)
+        .filter(User.user_type == UserTypeEnum.annotator)
+        .filter(User.is_active == True)
+        .order_by(User.user_id.asc())
+        .all()
+    )
