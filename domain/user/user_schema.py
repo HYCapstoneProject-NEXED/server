@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, ConfigDict
-from typing import Optional
+from typing import Optional, Union
 from datetime import date
 from enum import Enum
 
@@ -126,6 +126,14 @@ class WorkerOverview(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+# 작업자별 작업 개요 조회 요청용 스키마
+class WorkerOverviewFilter(BaseModel):
+    user_id: Optional[int] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    search: Optional[str] = None  # user_name 검색
 
 
 # 작업 기록 조회 필터용 사용자 목록 조회 응답용 스키마
