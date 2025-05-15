@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional
+from datetime import datetime
 
 class AnnotatorStats(BaseModel):
     user_id: int
@@ -26,4 +27,31 @@ class CameraImageStats(BaseModel):
 class UserCameraStats(BaseModel):
     user_id: int
     username: str
-    cameras: List[CameraImageStats] 
+    cameras: List[CameraImageStats]
+
+class AnnotationBase(BaseModel):
+    class_id: int
+    bounding_box: dict
+
+class AnnotationCreate(AnnotationBase):
+    pass
+
+class AnnotationUpdate(AnnotationBase):
+    annotation_id: int
+
+class AnnotationResponse(AnnotationBase):
+    annotation_id: int
+    date: datetime
+    conf_score: float
+    user_id: int
+
+    class Config:
+        from_attributes = True
+
+class AnnotationBulkUpdate(BaseModel):
+    annotations: List[AnnotationCreate]
+    existing_annotations: List[AnnotationUpdate]
+
+class CameraAssignment(BaseModel):
+    user_id: int
+    camera_ids: List[int] 
