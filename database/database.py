@@ -6,7 +6,7 @@ import pymysql
 pymysql.install_as_MySQLdb()
 
 # MySQL 연결 정보
-DATABASE_URL = "mysql+pymysql://root:1234@localhost:3306/mydatabase"
+DATABASE_URL = "mysql+pymysql://root:Gyurim123!@localhost:3306/capstoneProject"
 
 # SQLAlchemy 엔진 생성
 engine = create_engine(DATABASE_URL)

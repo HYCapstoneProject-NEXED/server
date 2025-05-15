@@ -222,7 +222,7 @@ class AnnotationHistoryFilter(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     user_name: Optional[str] = None
-    search: Optional[Union[str, int]] = None  # image_id (숫자) 또는 user_name (문자열) 검색
+    search: Optional[str] = None  # user_name (문자열) 검색
 
 
 class AnnotationBase(BaseModel):

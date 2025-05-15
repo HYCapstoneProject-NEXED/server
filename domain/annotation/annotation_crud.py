@@ -637,13 +637,9 @@ def get_annotation_history(db: Session, filters: annotation_schema.AnnotationHis
     if filters.user_name not in [None, "", "All"]:
         query = query.filter(User.name == filters.user_name)
 
-    # 검색
-    search_value = str(filters.search).strip()
-    # 숫자가 들어왔다면 image_id 검색
-    if search_value.isdigit():
-        query = query.filter(Image.image_id == int(search_value))
-    # 그 외는 user name 검색
-    else:
+    # 검색 (주석자 이름(users.name) 기준)
+    if filters.search:
+        search_value = str(filters.search).strip()
         query = query.filter(User.name.ilike(f"%{search_value}%"))
 
     return query.order_by(Annotation.date.desc()).all()
