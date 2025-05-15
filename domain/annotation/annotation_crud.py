@@ -9,6 +9,10 @@ from typing import Optional
 from datetime import date
 from typing import List
 from fastapi import HTTPException
+from domain.annotation.annotation_schema import (
+    AnnotationCreate, AnnotationUpdate, AnnotationResponse, 
+    AnnotationBulkUpdate
+)
 
 
 def get_defect_summary(db: Session):
@@ -643,3 +647,66 @@ def get_annotation_history(db: Session, filters: annotation_schema.AnnotationHis
         query = query.filter(User.name.ilike(f"%{search_value}%"))
 
     return query.order_by(Annotation.date.desc()).all()
+
+
+class AnnotationService:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def update_image_annotations(self, image_id: int, user_id: int, data: AnnotationBulkUpdate) -> List[AnnotationResponse]:
+        # 1. 기존 annotation ID 목록 조회
+        existing_annotation_ids = set(
+            ann.annotation_id for ann in self.db.query(Annotation)
+            .filter(Annotation.image_id == image_id)
+            .all()
+        )
+        
+        # 2. 업데이트할 annotation ID 목록
+        update_annotation_ids = set(
+            ann.annotation_id for ann in data.existing_annotations
+        )
+        
+        # 3. 삭제할 annotation ID 목록 (기존에 있지만 업데이트 목록에 없는 것)
+        delete_annotation_ids = existing_annotation_ids - update_annotation_ids
+        
+        # 4. 삭제 처리
+        if delete_annotation_ids:
+            self.db.query(Annotation).filter(
+                Annotation.annotation_id.in_(delete_annotation_ids)
+            ).delete(synchronize_session=False)
+        
+        # 5. 업데이트 처리
+        for update_data in data.existing_annotations:
+            self.db.query(Annotation).filter(
+                Annotation.annotation_id == update_data.annotation_id
+            ).update({
+                'class_id': update_data.class_id,
+                'bounding_box': update_data.bounding_box,
+                'date': datetime.utcnow(),
+                'conf_score': 1.0,
+                'user_id': user_id
+            })
+        
+        # 6. 새로운 annotation 생성
+        new_annotations = []
+        for create_data in data.annotations:
+            new_annotation = Annotation(
+                image_id=image_id,
+                class_id=create_data.class_id,
+                bounding_box=create_data.bounding_box,
+                date=datetime.utcnow(),
+                conf_score=1.0,
+                user_id=user_id
+            )
+            self.db.add(new_annotation)
+            new_annotations.append(new_annotation)
+        
+        # 7. 변경사항 저장
+        self.db.commit()
+        
+        # 8. 업데이트된 annotation 목록 조회
+        updated_annotations = self.db.query(Annotation).filter(
+            Annotation.image_id == image_id
+        ).all()
+        
+        return [AnnotationResponse.from_orm(ann) for ann in updated_annotations]

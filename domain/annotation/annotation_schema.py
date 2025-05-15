@@ -224,3 +224,27 @@ class AnnotationHistoryFilter(BaseModel):
     user_name: Optional[str] = None
     search: Optional[Union[str, int]] = None  # image_id (숫자) 또는 user_name (문자열) 검색
 
+
+class AnnotationBase(BaseModel):
+    class_id: int
+    bounding_box: dict
+
+class AnnotationCreate(AnnotationBase):
+    pass
+
+class AnnotationUpdate(AnnotationBase):
+    annotation_id: int
+
+class AnnotationResponse(AnnotationBase):
+    annotation_id: int
+    date: datetime
+    conf_score: float
+    user_id: int
+
+    class Config:
+        from_attributes = True
+
+class AnnotationBulkUpdate(BaseModel):
+    annotations: List[AnnotationCreate]
+    existing_annotations: List[AnnotationUpdate]
+
