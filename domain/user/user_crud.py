@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 from database.models import User, ApprovalStatusEnum, Annotation, Image
-from domain.user.user_schema import UserBase, UserUpdate, UserTypeFilterEnum, UserTypeEnum
+from domain.user.user_schema import UserBase, UserUpdate, UserTypeFilterEnum, UserTypeEnum, WorkerOverviewFilter
 from typing import List, Optional
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, cast, Date
 from fastapi import HTTPException, status
 
 
@@ -152,37 +152,67 @@ def update_user_approval_status(db: Session, user_id: int, action: str):
 
 
 # 작업자별 작업 개요 조회 함수
-def get_worker_overview(db: Session):
-    # 활성화된 승인된 annotator만 필터링
-    subquery = (
+def get_worker_overview_with_filters(db: Session, filters: WorkerOverviewFilter):
+    # 🔹 활성화된 annotator 전체 목록 (작업 여부와 관계없이)
+    annotators_query = db.query(User.user_id, User.name).filter(
+        User.user_type == "annotator",
+        User.is_active == True,
+        User.approval_status == "approved"
+    )
+    if filters.user_id:  # 사용자 필터
+        annotators_query = annotators_query.filter(User.user_id == filters.user_id)
+
+    annotators = annotators_query.subquery()
+
+    # 🔹 작업(주석) 테이블 + 이미지 join 후 필터
+    annotation_query = (
         db.query(
             Annotation.user_id.label("user_id"),
             Annotation.image_id.label("image_id")
         )
         .join(Image, Annotation.image_id == Image.image_id)
         .filter(Image.status == "completed")
-        .distinct(Annotation.user_id, Annotation.image_id)  # 🔹 중복 제거
+    )
+
+
+    # 날짜 필터 (annotation 기준)
+    if filters.start_date:
+        annotation_query = annotation_query.filter(cast(Annotation.date, Date) >= filters.start_date)
+    if filters.end_date:
+        annotation_query = annotation_query.filter(cast(Annotation.date, Date) <= filters.end_date)
+
+    # 사용자 필터
+    if filters.user_id:
+        annotation_query = annotation_query.filter(Annotation.user_id == filters.user_id)
+
+    # distinct image per user
+    subquery = annotation_query.distinct(Annotation.user_id, Annotation.image_id).subquery()
+
+    # 🔹 count(image_id) per user_id
+    count_subquery = (
+        db.query(
+            subquery.c.user_id,
+            func.count(subquery.c.image_id).label("work_count")
+        )
+        .group_by(subquery.c.user_id)
         .subquery()
     )
 
-    # 해당 작업자의 이름과 작업 수 조회
-    result = (
+    # 🔹 모든 annotator에 대해 left outer join → 작업 0건도 포함
+    query = (
         db.query(
-            User.name.label("user_name"),
-            func.count(subquery.c.image_id).label("work_count")
+            annotators.c.name.label("user_name"),
+            func.coalesce(count_subquery.c.work_count, 0).label("work_count")
         )
-        .join(subquery, User.user_id == subquery.c.user_id)
-        .filter(
-            User.user_type == "annotator",
-            User.is_active == True,
-            User.approval_status == "approved"
-        )
-        .group_by(User.user_id)
-        .order_by(func.count(subquery.c.image_id).desc())
-        .all()
+        .outerjoin(count_subquery, annotators.c.user_id == count_subquery.c.user_id)
     )
 
-    return result
+    # 검색 필터 (annotator 이름 검색)
+    if filters.search:
+        keyword = f"%{filters.search}%"
+        query = query.filter(annotators.c.name.ilike(keyword))
+
+    return query.order_by(func.coalesce(count_subquery.c.work_count, 0).desc()).all()
 
 
 # 작업 기록 조회 필터용 사용자 목록 조회 함수
