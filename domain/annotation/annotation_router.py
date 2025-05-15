@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 from database.database import get_db
 from domain.annotation import annotation_crud, annotation_schema
 from typing import List, Optional
-from domain.annotation.annotation_schema import MainScreenResponse, ImageSummary
+from domain.annotation.annotation_schema import MainScreenResponse, ImageSummary, AnnotationBulkUpdate, AnnotationResponse
 from datetime import date, timedelta
+from domain.annotation.annotation_crud import AnnotationService
 
 
 router = APIRouter(
@@ -210,3 +211,16 @@ def get_annotation_history(
     db: Session = Depends(get_db)
 ):
     return annotation_crud.get_annotation_history(db, filters)
+
+@router.put("/detail/{user_id}/{image_id}", response_model=List[AnnotationResponse])
+def update_image_annotations(
+    user_id: int,
+    image_id: int,
+    data: AnnotationBulkUpdate,
+    db: Session = Depends(get_db)
+):
+    annotation_service = AnnotationService(db)
+    try:
+        return annotation_service.update_image_annotations(image_id, user_id, data)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
