@@ -9,6 +9,11 @@ __pycache__/
 dist/
 build/
 
+# YOLO 모델 관련 (개인 추가)
+*.jpg
+best.pt
+config.py
+
 # Virtual environments
 venv/
 ENV/
@@ -23,7 +28,7 @@ env/
 .DS_Store
 Thumbs.db
 
-# Environment files (중요!)
+# Environment files
 .env
 
 # 로그 파일
@@ -33,13 +38,12 @@ Thumbs.db
 .mypy_cache/
 .pytest_cache/
 
-# 기타
+# 기타 DB
 *.sqlite3
 *.db
 .zshrc
 
-
-# Frontend build (필요시)
+# Frontend (if needed)
 frontend/node_modules/
 frontend/dist/
 
