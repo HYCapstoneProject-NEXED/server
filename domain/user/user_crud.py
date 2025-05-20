@@ -46,14 +46,16 @@ def update_user_info(db: Session, user: User, user_update: UserUpdate) -> User:
     ✅ 기존 사용자 정보 업데이트 함수
     - 필수 정보가 모두 입력된 경우에만 업데이트 실행
     """
-    user.name = user_update.name
-    user.user_type = user_update.user_type
-    user.birthdate = user_update.birthdate
-    user.nationality = user_update.nationality
-    user.bank_name = user_update.bank_name
-    user.bank_account = user_update.bank_account
-    user.terms_accepted = user_update.terms_accepted  # 약관 동의 여부
-    user.gender = user_update.gender
+    if user_update.bank_name is not None:
+        user.bank_name = user_update.bank_name
+    if user_update.bank_account is not None:
+        user.bank_account = user_update.bank_account
+    if user_update.address is not None:
+        user.address = user_update.address
+    if user_update.company_name is not None:
+        user.company_name = user_update.company_name
+    if user_update.factory_name is not None:
+        user.factory_name = user_update.factory_name
 
     db.commit()
     db.refresh(user)  # 변경 사항 반영

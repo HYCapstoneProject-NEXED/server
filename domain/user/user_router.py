@@ -285,12 +285,41 @@ def update_user_profile(
     user_update: UserUpdate,
     db: Session = Depends(get_db)
 ):
+    """
+    사용자의 은행 정보, 주소, 회사 정보를 업데이트합니다.
+    요청 본문:
+    - bank_name: 은행명 (선택)
+    - bank_account: 계좌번호 (선택)
+    - address: 주소 (선택)
+    - company_factory: '회사명/공장명' 형식의 문자열 (선택)
+    
+    응답:
+    - 업데이트된 사용자의 전체 정보
+    """
     user = get_user_by_id(db, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     
-    updated_user = update_user_info(db, user, user_update)
-    return updated_user
+    # 각 필드 업데이트
+    if user_update.bank_name is not None:
+        user.bank_name = user_update.bank_name
+    if user_update.bank_account is not None:
+        user.bank_account = user_update.bank_account
+    if user_update.address is not None:
+        user.address = user_update.address
+    
+    # company_factory 문자열을 company_name과 factory_name으로 분리
+    if user_update.company_factory is not None:
+        if "/" not in user_update.company_factory:
+            raise HTTPException(status_code=400, detail="회사명/공장명을 '회사명/공장명' 형식으로 입력해주세요.")
+        
+        company, factory = user_update.company_factory.split("/", 1)
+        user.company_name = company.strip()
+        user.factory_name = factory.strip()
+
+    db.commit()
+    db.refresh(user)
+    return user
 
 @router.get("/users", response_model=List[UserSummary])
 def get_member_list(
