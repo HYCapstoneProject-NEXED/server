@@ -87,6 +87,9 @@ class Image(Base):
     dataset_id = Column(Integer, nullable=False)
     status = Column(Enum("pending", "completed", name="statusenum"), nullable=False, default="pending")
 
+    width = Column(Integer, nullable=False)
+    height = Column(Integer, nullable=False)
+    
     annotations = relationship(
     "Annotation",
     back_populates="image",
