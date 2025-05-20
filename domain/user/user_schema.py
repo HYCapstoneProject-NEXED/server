@@ -50,15 +50,10 @@ class UserResponse(UserBase):
 
 
 class UserUpdate(BaseModel):
-    name: Optional[str]
-    user_type: Optional[str]
-    birthdate: Optional[date]
-    nationality: Optional[str]
-    company_factory: Optional[str]  # '회사명/공장명' 하나의 문자열로 받음
     bank_name: Optional[str]
     bank_account: Optional[str]
-    terms_accepted: Optional[bool]
-    gender: Optional[GenderEnum]
+    address: Optional[str]
+    company_factory: Optional[str]  # '회사명/공장명' 형식으로 받음
 
 
 # 조회 필터용 (all_roles 포함)
