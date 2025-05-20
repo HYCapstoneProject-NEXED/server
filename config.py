@@ -12,7 +12,6 @@ JWT_SECRET = os.getenv("JWT_SECRET")
 # ✅ 추가: JWT 알고리즘 설정
 ALGORITHM = "HS256"  # JWT 토큰 서명에 사용할 해싱 알고리즘
 
-
 # 📌 환경 변수가 잘 불러와졌는지 확인 (테스트용)
 print(f"✅ GOOGLE_CLIENT_ID: {GOOGLE_CLIENT_ID}")
 print(f"✅ GOOGLE_CLIENT_SECRET: {GOOGLE_CLIENT_SECRET}")

@@ -249,4 +249,3 @@ class AnnotationResponse(AnnotationBase):
 class AnnotationBulkUpdate(BaseModel):
     annotations: List[AnnotationCreate]
     existing_annotations: List[AnnotationUpdate]
-

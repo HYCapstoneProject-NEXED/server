@@ -82,10 +82,12 @@ class Image(Base):
 
     image_id = Column(Integer, primary_key=True, index=True)
     file_path = Column(String(500), nullable=False)
-    date = Column(DateTime, nullable=False)
+    date = Column(DateTime, nullable=False, default=datetime.utcnow)  # 업로드 시점 기준으로 자동으로 시간 기록이 되도록.
     camera_id = Column(Integer, ForeignKey("Cameras.camera_id"), nullable=False)
     dataset_id = Column(Integer, nullable=False)
     status = Column(Enum("pending", "completed", name="statusenum"), nullable=False, default="pending")
+    width = Column(Integer, nullable=False)
+    height = Column(Integer, nullable=False)
 
     width = Column(Integer, nullable=False)
     height = Column(Integer, nullable=False)

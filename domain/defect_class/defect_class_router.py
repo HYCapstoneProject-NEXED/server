@@ -6,7 +6,7 @@ from domain.defect_class import defect_class_schema, defect_class_crud
 
 router = APIRouter(
     prefix="/defect-classes",
-    tags=["Defect Class"]
+    tags=["Defect Classes"]
 )
 
 @router.get("", response_model=list[defect_class_schema.DefectClassResponse])
