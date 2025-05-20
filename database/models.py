@@ -89,6 +89,9 @@ class Image(Base):
     width = Column(Integer, nullable=False)
     height = Column(Integer, nullable=False)
 
+    width = Column(Integer, nullable=False)
+    height = Column(Integer, nullable=False)
+    
     annotations = relationship(
     "Annotation",
     back_populates="image",
