@@ -78,6 +78,8 @@ class AnnotationDetailResponse(BaseModel):
     date: datetime
     camera_id: int
     dataset_id: int
+    width: int
+    height: int
     defects: List[DefectDetail]
 
     class Config:
