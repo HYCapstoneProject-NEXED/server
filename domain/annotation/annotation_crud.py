@@ -293,90 +293,76 @@ def get_main_data(db: Session, user_id: int, filters: Optional[annotation_schema
     if not user:
         return None
 
-    # 2. 사용자와 연결된 카메라 목록 가져오기
-    user_cameras = db.query(annotator_camera_association.c.camera_id)\
-        .filter(annotator_camera_association.c.user_id == user_id)\
-        .all()
-    camera_ids = [camera[0] for camera in user_cameras]
+    # 2. 이미지 목록 조회
+    query = (
+        db.query(
+            Image.camera_id,
+            Image.image_id,
+            Image.file_path,
+            Image.width,
+            Image.height,
+            Image.status,
+            func.count(Annotation.annotation_id).label("count"),
+            func.avg(Annotation.conf_score).label("confidence")
+        )
+        .outerjoin(Annotation, Image.image_id == Annotation.image_id)
+        .group_by(Image.image_id)
+    )
 
-    if not camera_ids:
-        return {
-            "profile_image": user.profile_image,
-            "total_images": 0,
-            "pending_images": 0,
-            "completed_images": 0,
-            "image_list": []
-        }
-
-    # 3. 기본 쿼리 구성
-    base_query = db.query(Image).filter(Image.camera_id.in_(camera_ids))
-
-    # 4. 필터 적용
+    # 3. 필터 적용
     if filters:
         if filters.status:
-            base_query = base_query.filter(Image.status == filters.status)
+            query = query.filter(Image.status == filters.status)
         if filters.class_names:
-            base_query = base_query.join(Annotation, Image.image_id == Annotation.image_id)\
-                .join(DefectClass, Annotation.class_id == DefectClass.class_id)\
-                .filter(DefectClass.class_name.in_(filters.class_names))
-        if filters.min_confidence is not None or filters.max_confidence is not None:
-            base_query = base_query.join(Annotation, Image.image_id == Annotation.image_id)
-            if filters.min_confidence is not None:
-                base_query = base_query.filter(Annotation.conf_score >= filters.min_confidence)
-            if filters.max_confidence is not None:
-                base_query = base_query.filter(Annotation.conf_score <= filters.max_confidence)
-
-    # 5. 연결된 카메라의 전체 이미지 개수
-    total_images = base_query.count()
-
-    # 6. pending 상태의 이미지 개수
-    pending_images = base_query.filter(Image.status == "pending").count()
-
-    # 7. completed 상태의 이미지 개수
-    completed_images = base_query.filter(Image.status == "completed").count()
-
-    # 8. 이미지 목록 가져오기
-    images = db.query(
-        Image.camera_id,
-        Image.image_id,
-        Image.file_path,
-        func.min(Annotation.conf_score).label('confidence'),
-        func.count(Annotation.annotation_id).label('count'),
-        Image.status
-    ).outerjoin(Annotation, Image.image_id == Annotation.image_id)\
-     .filter(Image.camera_id.in_(camera_ids))
-
-    # 필터 적용
-    if filters:
-        if filters.status:
-            images = images.filter(Image.status == filters.status)
-        if filters.class_names:
-            images = images.join(DefectClass, Annotation.class_id == DefectClass.class_id)\
-                .filter(DefectClass.class_name.in_(filters.class_names))
+            query = query.join(Annotation).join(DefectClass).filter(DefectClass.class_name.in_(filters.class_names))
         if filters.min_confidence is not None:
-            images = images.filter(Annotation.conf_score >= filters.min_confidence)
+            query = query.having(func.avg(Annotation.conf_score) >= filters.min_confidence)
         if filters.max_confidence is not None:
-            images = images.filter(Annotation.conf_score <= filters.max_confidence)
+            query = query.having(func.avg(Annotation.conf_score) <= filters.max_confidence)
 
-    images = images.group_by(Image.camera_id, Image.image_id, Image.file_path, Image.status)\
+    # 4. 결과 조회
+    images = query.all()
+
+    # 5. 바운딩 박스 정보 조회
+    image_ids = [img.image_id for img in images]
+    bounding_boxes = (
+        db.query(
+            Annotation.image_id,
+            func.json_arrayagg(
+                func.json_object(
+                    'bounding_box', Annotation.bounding_box,
+                    'class_name', DefectClass.class_name
+                )
+            ).label('boxes')
+        )
+        .join(DefectClass, Annotation.class_id == DefectClass.class_id)
+        .filter(Annotation.image_id.in_(image_ids))
+        .group_by(Annotation.image_id)
         .all()
+    )
 
-    # 각 이미지의 bounding box 정보 가져오기
+    # 6. 바운딩 박스 정보를 딕셔너리로 변환
+    bbox_dict = {row.image_id: row.boxes for row in bounding_boxes}
+
+    # 7. 응답 데이터 구성
     image_list = []
     for img in images:
-        bounding_boxes = db.query(Annotation.bounding_box)\
-            .filter(Annotation.image_id == img.image_id)\
-            .all()
-
         image_list.append({
             "camera_id": img.camera_id,
             "image_id": img.image_id,
             "file_path": img.file_path,
-            "confidence": img.confidence,
+            "width": img.width,
+            "height": img.height,
+            "confidence": float(img.confidence) if img.confidence else None,
             "count": img.count,
             "status": img.status,
-            "bounding_boxes": [box[0] for box in bounding_boxes]
+            "bounding_boxes": bbox_dict.get(img.image_id, [])
         })
+
+    # 8. 전체 통계 계산
+    total_images = len(image_list)
+    pending_images = sum(1 for img in image_list if img["status"] == "pending")
+    completed_images = sum(1 for img in image_list if img["status"] == "completed")
 
     return {
         "profile_image": user.profile_image,
