@@ -88,9 +88,6 @@ class Image(Base):
     status = Column(Enum("pending", "completed", name="statusenum"), nullable=False, default="pending")
     width = Column(Integer, nullable=False)
     height = Column(Integer, nullable=False)
-
-    width = Column(Integer, nullable=False)
-    height = Column(Integer, nullable=False)
     
     annotations = relationship(
     "Annotation",
@@ -107,16 +104,16 @@ class Annotation(Base):
 
     annotation_id = Column(Integer, primary_key=True, index=True)
     image_id = Column(Integer, ForeignKey("Images.image_id", ondelete="CASCADE"), nullable=False)
-
     class_id = Column(Integer, ForeignKey("DefectClasses.class_id", ondelete="RESTRICT"), nullable=False)
-
     date = Column(DateTime, nullable=False)
     conf_score = Column(Float, nullable=True)
     bounding_box = Column(JSON, nullable=False)
     user_id = Column(Integer, ForeignKey("Users.user_id"), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)  # 소프트 삭제용 필드. 삭제 시 is_active=False
 
     image = relationship("Image", back_populates="annotations")
     defect_class = relationship("DefectClass", back_populates="annotations")
+    user = relationship("User", backref="annotations")
 
 
 # 결함 클래스 테이블

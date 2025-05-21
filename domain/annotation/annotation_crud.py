@@ -13,6 +13,7 @@ from domain.annotation.annotation_schema import (
     AnnotationCreate, AnnotationUpdate, AnnotationResponse, 
     AnnotationBulkUpdate
 )
+from sqlalchemy.orm import aliased
 
 
 def get_defect_summary(db: Session):
@@ -590,36 +591,46 @@ def update_image_status(db: Session, image_id: int, status: str):
 
 # 작업 기록 조회 함수
 def get_annotation_history(db: Session, filters: annotation_schema.AnnotationHistoryFilter):
-    # 서브쿼리: 이미지당 가장 최신 주석 하나 (annotation_id가 가장 큰 것 기준)
-    subquery = (
+    # 서브쿼리: 이미지별 주석 중 대표 주석 1건을 선택하기 위한 row_number 부여
+    annot_with_rownum = (
         db.query(
+            Annotation.annotation_id,
             Annotation.image_id,
-            func.max(Annotation.annotation_id).label("latest_annot_id")
+            Annotation.date,
+            Annotation.user_id,
+
+            # 동일한 image_id 그룹 내에서 row_number 부여 (date는 모두 동일)
+            func.row_number().over(
+                partition_by=Annotation.image_id,
+                order_by=Annotation.date.desc()
+            ).label("row_num")
         )
         .join(Image, Annotation.image_id == Image.image_id)
-        .filter(Image.status == 'completed')  # 완료된 이미지에 대해서만
-        .group_by(Annotation.image_id)
+        .filter(Image.status == 'completed')  # status가 completed인 이미지에 대해서만 조회
         .subquery()
     )
 
-    # 메인 쿼리: 대표 주석만 조회
+    # 서브쿼리 결과를 참조하기 위한 alias
+    RepAnnot = aliased(Annotation, annot_with_rownum)
+
+    # 메인 쿼리: 이미지별 대표 주석 1건만 join (row_num = 1 조건)
     query = (
         db.query(
             Image.image_id,
             User.name.label("user_name"),
-            Annotation.date.label("annotation_date"),
+            RepAnnot.date.label("annotation_date"),
             Image.status.label("image_status")
         )
-        .join(Image, Annotation.image_id == Image.image_id)
-        .join(User, Annotation.user_id == User.user_id)  # 유저 조인
-        .join(subquery, Annotation.annotation_id == subquery.c.latest_annot_id)
+        .join(Image, RepAnnot.image_id == Image.image_id)  # 주석 → 이미지 조인
+        .join(User, RepAnnot.user_id == User.user_id)  # 주석 → 사용자 조인
+        .filter(annot_with_rownum.c.row_num == 1)   # 대표 주석 1건만 조회
     )
 
     # 날짜 필터
     if filters.start_date and filters.end_date:
         next_day = filters.end_date + timedelta(days=1)
-        query = query.filter(Annotation.date >= filters.start_date)
-        query = query.filter(Annotation.date < next_day)
+        query = query.filter(RepAnnot.date >= filters.start_date)  # Annotation.date → RepAnnot.date
+        query = query.filter(RepAnnot.date < next_day)
 
     # 사용자 필터
     if filters.user_name not in [None, "", "All"]:
@@ -630,7 +641,7 @@ def get_annotation_history(db: Session, filters: annotation_schema.AnnotationHis
         search_value = str(filters.search).strip()
         query = query.filter(User.name.ilike(f"%{search_value}%"))
 
-    return query.order_by(Annotation.date.desc()).all()
+    return query.order_by(RepAnnot.date.desc()).all()  # RepAnnot 기준으로 정렬
 
 
 class AnnotationService:
