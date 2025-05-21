@@ -6,6 +6,8 @@ from typing import List, Optional
 from domain.annotation.annotation_schema import MainScreenResponse, ImageSummary, AnnotationBulkUpdate, AnnotationResponse
 from datetime import date, timedelta
 from domain.annotation.annotation_crud import AnnotationService
+import json  # JSON 파싱을 위한 모듈 추가
+from database.models import DefectClass  # DefectClass 모델 추가
 
 
 router = APIRouter(
@@ -51,7 +53,7 @@ def get_annotation_details(image_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Image not found")
     return data
 
-@router.get("/main/{user_id}", response_model=MainScreenResponse)
+@router.get("/main/{user_id}", response_model=List[ImageSummary])
 def get_main_screen(
     user_id: int,
     db: Session = Depends(get_db)
@@ -59,62 +61,84 @@ def get_main_screen(
     data = annotation_crud.get_main_data(db, user_id)
     if data is None:
         raise HTTPException(status_code=404, detail="User not found")
-
+    
+    # DefectClass 정보 가져오기
+    defect_classes = db.query(DefectClass.class_id, DefectClass.class_name, DefectClass.class_color).all()
+    class_color_map = {cls.class_name: cls.class_color for cls in defect_classes}
+    
     # 결과를 ImageSummary 객체로 변환
-    image_list = [
-        ImageSummary(
-            camera_id=img["camera_id"],
-            image_id=img["image_id"],
-            file_path=img["file_path"],
-            confidence=img["confidence"],
-            count=img["count"],
-            status=img["status"],
-            bounding_boxes=img["bounding_boxes"]
-        ) for img in data["image_list"]
-    ]
+    image_list = []
+    for img in data["image_list"]:
+        # bounding_boxes 파싱 및 class_color 추가
+        if isinstance(img["bounding_boxes"], str):
+            boxes = json.loads(img["bounding_boxes"])
+        else:
+            boxes = img["bounding_boxes"]
+        
+        # 각 박스에 class_color 추가
+        for box in boxes:
+            if "class_name" in box and box["class_name"] in class_color_map:
+                box["class_color"] = class_color_map[box["class_name"]]
+        
+        image_list.append(
+            ImageSummary(
+                camera_id=img["camera_id"],
+                image_id=img["image_id"],
+                file_path=img["file_path"],
+                confidence=img["confidence"],
+                count=img["count"],
+                status=img["status"],
+                width=img["width"],
+                height=img["height"],
+                bounding_boxes=boxes
+            )
+        )
 
-    return MainScreenResponse(
-        profile_image=data["profile_image"],
-        total_images=data["total_images"],
-        pending_images=data["pending_images"],
-        completed_images=data["completed_images"],
-        image_list=image_list
-    )
+    return image_list
 
-@router.get("/main/{user_id}/filtered", response_model=annotation_schema.FilteredImageListResponse)
+@router.post("/main/filter/{user_id}", response_model=List[ImageSummary])
 def get_filtered_image_list(
     user_id: int,
-    class_names: Optional[List[str]] = Query(None),
-    status: Optional[str] = Query(None),
-    min_confidence: Optional[float] = Query(None),
-    max_confidence: Optional[float] = Query(None),
+    filters: annotation_schema.FilteredImageListRequest = annotation_schema.FilteredImageListRequest(),
     db: Session = Depends(get_db)
 ):
-    filters = annotation_schema.FilteredImageListRequest(
-        class_names=class_names,
-        status=status,
-        min_confidence=min_confidence,
-        max_confidence=max_confidence
-    )
-    
     data = annotation_crud.get_main_data(db, user_id, filters)
     if data is None:
         raise HTTPException(status_code=404, detail="User not found")
-
+    
+    # DefectClass 정보 가져오기
+    defect_classes = db.query(DefectClass.class_id, DefectClass.class_name, DefectClass.class_color).all()
+    class_color_map = {cls.class_name: cls.class_color for cls in defect_classes}
+    
     # 결과를 ImageSummary 객체로 변환
-    image_list = [
-        ImageSummary(
-            camera_id=img["camera_id"],
-            image_id=img["image_id"],
-            file_path=img["file_path"],
-            confidence=img["confidence"],
-            count=img["count"],
-            status=img["status"],
-            bounding_boxes=img["bounding_boxes"]
-        ) for img in data["image_list"]
-    ]
+    image_list = []
+    for img in data["image_list"]:
+        # bounding_boxes 파싱 및 class_color 추가
+        if isinstance(img["bounding_boxes"], str):
+            boxes = json.loads(img["bounding_boxes"])
+        else:
+            boxes = img["bounding_boxes"]
+        
+        # 각 박스에 class_color 추가
+        for box in boxes:
+            if "class_name" in box and box["class_name"] in class_color_map:
+                box["class_color"] = class_color_map[box["class_name"]]
+        
+        image_list.append(
+            ImageSummary(
+                camera_id=img["camera_id"],
+                image_id=img["image_id"],
+                file_path=img["file_path"],
+                confidence=img["confidence"],
+                count=img["count"],
+                status=img["status"],
+                width=img["width"],
+                height=img["height"],
+                bounding_boxes=boxes
+            )
+        )
 
-    return annotation_schema.FilteredImageListResponse(image_list=image_list)
+    return image_list
 
 @router.get("/statistics/defect-type", response_model=List[annotation_schema.DefectTypeStatistics])
 def read_defect_type_statistics(db: Session = Depends(get_db)):

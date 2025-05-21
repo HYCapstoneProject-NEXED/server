@@ -93,6 +93,8 @@ class ImageSummary(BaseModel):
     confidence: Optional[float]
     count: int
     status: str
+    width: int
+    height: int
     bounding_boxes: List[Dict[str, Any]]
 
     class Config:
