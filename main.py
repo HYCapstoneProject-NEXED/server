@@ -6,7 +6,9 @@ from domain.admin.admin_router import router as admin_router
 from domain.image.image_router import router as image_router
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-
+from ultralytics import YOLO
+from domain.yolo.yolo_inference import _set_model
+from domain.yolo.yolo_router import router as yolo_router
 
 app = FastAPI()
 
@@ -20,7 +22,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def load_model():
+    try:
+        app.state.yolo_model = YOLO("best.pt")
+        _set_model(app.state.yolo_model)
+    except Exception as e:
+        print(f"[ERROR] YOLO 모델 로드 실패: {e}")
+
 # 🔹 라우터 등록
+app.include_router(yolo_router)
 app.include_router(user_router.router)
 app.include_router(annotation_router.router)
 app.include_router(defect_class_router.router)

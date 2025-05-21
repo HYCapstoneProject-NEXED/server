@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, Enum, Float, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, Enum, Float, ForeignKey, JSON, func
 from database.database import Base
 from sqlalchemy.orm import relationship
 import enum
@@ -102,10 +102,10 @@ class Image(Base):
 class Annotation(Base):
     __tablename__ = "Annotations"
 
-    annotation_id = Column(Integer, primary_key=True, index=True)
+    annotation_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     image_id = Column(Integer, ForeignKey("Images.image_id", ondelete="CASCADE"), nullable=False)
     class_id = Column(Integer, ForeignKey("DefectClasses.class_id", ondelete="RESTRICT"), nullable=False)
-    date = Column(DateTime, nullable=False)
+    date = Column(DateTime, nullable=False, default=func.now())
     conf_score = Column(Float, nullable=True)
     bounding_box = Column(JSON, nullable=False)
     user_id = Column(Integer, ForeignKey("Users.user_id"), nullable=True)
