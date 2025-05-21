@@ -10,3 +10,9 @@ python-dotenv
 boto3
 python-multipart
 pillow
+
+# yolo 모델 관련
+ultralytics==8.3.109
+torch==2.2.2
+torchvision==0.17.2
+numpy==1.26.4

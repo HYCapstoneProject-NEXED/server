@@ -38,10 +38,14 @@ Thumbs.db
 *.db
 .zshrc
 
-
 # Frontend build (필요시)
 frontend/node_modules/
 frontend/dist/
 
 # MySQL 데이터 (Git 추적 금지!)
 mysql-data/
+
+# YOLO 모델 관련 (개인 추가)
+*.jpg
+best.pt
+config.py
