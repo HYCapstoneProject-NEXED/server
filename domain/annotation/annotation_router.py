@@ -224,3 +224,18 @@ def update_image_annotations(
         return annotation_service.update_image_annotations(image_id, user_id, data)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/tasks/{user_id}", response_model=annotation_schema.TaskSummaryResponse)
+def get_task_summary(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    data = annotation_crud.get_main_data(db, user_id)
+    if data is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return annotation_schema.TaskSummaryResponse(
+        total_images=data["total_images"],
+        pending_images=data["pending_images"],
+        completed_images=data["completed_images"]
+    )

@@ -249,3 +249,11 @@ class AnnotationResponse(AnnotationBase):
 class AnnotationBulkUpdate(BaseModel):
     annotations: List[AnnotationCreate]
     existing_annotations: List[AnnotationUpdate]
+
+class TaskSummaryResponse(BaseModel):
+    total_images: int
+    pending_images: int
+    completed_images: int
+
+    class Config:
+        orm_mode = True
