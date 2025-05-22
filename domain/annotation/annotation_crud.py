@@ -14,6 +14,32 @@ from domain.annotation.annotation_schema import (
     AnnotationBulkUpdate
 )
 from sqlalchemy.orm import aliased
+import os
+import boto3
+from urllib.parse import urlparse
+from dotenv import load_dotenv
+
+# .env 로딩
+load_dotenv()
+
+# 환경변수 가져오기
+AWS_REGION = os.getenv("AWS_REGION")
+S3_BUCKET = os.getenv("S3_BUCKET_NAME")
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+
+# boto3 client 구성
+s3 = boto3.client(
+    "s3",
+    region_name=AWS_REGION,
+    aws_access_key_id=AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+)
+
+# s3 key 추출 함수
+def extract_s3_key_from_url(url: str) -> str:
+    parsed_url = urlparse(url)
+    return parsed_url.path.lstrip("/")  # 버킷 이름 이후 경로만 추출
 
 
 def get_defect_summary(db: Session):
@@ -562,15 +588,29 @@ def delete_images(db: Session, image_ids: List[int]):
             detail=f"Images not found: {list(not_found_ids)}"
         )
 
+    # S3에서 이미지 파일 삭제
+    s3_errors = []
+    for image in existing_images:
+        try:
+            s3_key = extract_s3_key_from_url(image.file_path)
+            s3.delete_object(Bucket=S3_BUCKET, Key=s3_key)
+        except Exception as e:
+            s3_errors.append(f"S3 Error for image {image.image_id}: {str(e)}")
+
     # 이미지 삭제 (CASCADE로 인해 관련 어노테이션도 자동 삭제)
     for image in existing_images:
         db.delete(image)
 
     db.commit()
 
+    # S3 오류가 있다면 경고 메시지 추가
+    message = f"Successfully deleted {len(existing_images)} images"
+    if s3_errors:
+        message += f", but encountered {len(s3_errors)} S3 errors"
+
     return {
         "success": True,
-        "message": f"Successfully deleted {len(existing_images)} images",
+        "message": message,
         "deleted_ids": existing_image_ids
     }
 
