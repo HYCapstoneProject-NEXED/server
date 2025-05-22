@@ -70,6 +70,7 @@ class DefectDetail(BaseModel):
     conf_score: float
     bounding_box: Dict[str, Any]
     user_id: int
+    is_active: bool
 
 
 class AnnotationDetailResponse(BaseModel):
