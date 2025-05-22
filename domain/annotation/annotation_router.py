@@ -75,7 +75,7 @@ def get_main_screen(
         else:
             boxes = img["bounding_boxes"]
         
-        # 각 박스에 class_color 추가
+        # 각 박스에 class_color 추가 (is_active는 이미 포함되어 있음)
         for box in boxes:
             if "class_name" in box and box["class_name"] in class_color_map:
                 box["class_color"] = class_color_map[box["class_name"]]
@@ -119,7 +119,7 @@ def get_filtered_image_list(
         else:
             boxes = img["bounding_boxes"]
         
-        # 각 박스에 class_color 추가
+        # 각 박스에 class_color 추가 (is_active는 이미 포함되어 있음)
         for box in boxes:
             if "class_name" in box and box["class_name"] in class_color_map:
                 box["class_color"] = class_color_map[box["class_name"]]

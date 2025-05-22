@@ -271,6 +271,7 @@ def get_annotation_details_by_image_id(db: Session, image_id: int):
         db.query(Annotation, DefectClass.class_name, DefectClass.class_color)
         .join(DefectClass, Annotation.class_id == DefectClass.class_id)
         .filter(Annotation.image_id == image_id)
+        .filter(Annotation.is_active == True)  # is_active=True인 어노테이션만 조회
         .all()
     )
 
@@ -298,7 +299,8 @@ def get_annotation_details_by_image_id(db: Session, image_id: int):
             "class_color": class_color,
             "conf_score": annotation.conf_score,
             "bounding_box": annotation.bounding_box,
-            "user_id": annotation.user_id
+            "user_id": annotation.user_id,
+            "is_active": annotation.is_active  # is_active 값 추가
         }
         result["defects"].append(defect_data)
 
@@ -334,6 +336,9 @@ def get_main_data(db: Session, user_id: int, filters: Optional[annotation_schema
         )
         .outerjoin(Annotation, Image.image_id == Annotation.image_id)
     )
+    
+    # is_active=True인 어노테이션만 카운트하도록 수정
+    query = query.filter(or_(Annotation.is_active == True, Annotation.annotation_id == None))
     
     # 클래스 이름 필터가 있을 경우, DefectClass 조인
     defect_class_joined = False
@@ -371,12 +376,14 @@ def get_main_data(db: Session, user_id: int, filters: Optional[annotation_schema
             func.json_arrayagg(
                 func.json_object(
                     'bounding_box', Annotation.bounding_box,
-                    'class_name', DefectClass.class_name
+                    'class_name', DefectClass.class_name,
+                    'is_active', Annotation.is_active
                 )
             ).label('boxes')
         )
         .join(DefectClass, Annotation.class_id == DefectClass.class_id)
         .filter(Annotation.image_id.in_(image_ids))
+        .filter(Annotation.is_active == True)  # is_active=True인 어노테이션만 포함
         .group_by(Annotation.image_id)
     )
     
