@@ -294,7 +294,7 @@ def get_main_data(db: Session, user_id: int, filters: Optional[annotation_schema
     if not user:
         return None
 
-    # 2. 이미지 목록 조회
+    # 2. 이미지 목록 조회 - 기본 쿼리 구성
     query = (
         db.query(
             Image.camera_id,
@@ -304,29 +304,42 @@ def get_main_data(db: Session, user_id: int, filters: Optional[annotation_schema
             Image.height,
             Image.status,
             func.count(Annotation.annotation_id).label("count"),
-            func.avg(Annotation.conf_score).label("confidence")
+            func.min(Annotation.conf_score).label("confidence")
         )
         .outerjoin(Annotation, Image.image_id == Annotation.image_id)
-        .group_by(Image.image_id)
     )
+    
+    # 클래스 이름 필터가 있을 경우, DefectClass 조인
+    defect_class_joined = False
+    if filters and filters.class_names:
+        query = query.join(DefectClass, Annotation.class_id == DefectClass.class_id)
+        defect_class_joined = True
 
     # 3. 필터 적용
     if filters:
         if filters.status:
             query = query.filter(Image.status == filters.status)
         if filters.class_names:
-            query = query.join(Annotation).join(DefectClass).filter(DefectClass.class_name.in_(filters.class_names))
+            query = query.filter(DefectClass.class_name.in_(filters.class_names))
+        
+    # 마지막에 그룹화
+    query = query.group_by(Image.image_id)
+    
+    # Confidence 필터는 그룹화 후 적용
+    if filters:
         if filters.min_confidence is not None:
-            query = query.having(func.avg(Annotation.conf_score) >= filters.min_confidence)
+            query = query.having(func.min(Annotation.conf_score) >= filters.min_confidence)
         if filters.max_confidence is not None:
-            query = query.having(func.avg(Annotation.conf_score) <= filters.max_confidence)
+            query = query.having(func.min(Annotation.conf_score) <= filters.max_confidence)
 
     # 4. 결과 조회
     images = query.all()
 
     # 5. 바운딩 박스 정보 조회
     image_ids = [img.image_id for img in images]
-    bounding_boxes = (
+    
+    # 바운딩 박스 조회를 위한 서브쿼리
+    bounding_boxes_query = (
         db.query(
             Annotation.image_id,
             func.json_arrayagg(
@@ -339,8 +352,10 @@ def get_main_data(db: Session, user_id: int, filters: Optional[annotation_schema
         .join(DefectClass, Annotation.class_id == DefectClass.class_id)
         .filter(Annotation.image_id.in_(image_ids))
         .group_by(Annotation.image_id)
-        .all()
     )
+    
+    # 실행
+    bounding_boxes = bounding_boxes_query.all()
 
     # 6. 바운딩 박스 정보를 딕셔너리로 변환
     bbox_dict = {row.image_id: row.boxes for row in bounding_boxes}
