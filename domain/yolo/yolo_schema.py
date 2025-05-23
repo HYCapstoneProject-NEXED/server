@@ -11,6 +11,7 @@ class Box(BaseModel):
 
 class BoundingBox(BaseModel):
     class_id: int
+    class_name: str  # 클래스 이름 추가
     confidence: float
     bounding_box: Box
 

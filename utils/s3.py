@@ -5,7 +5,7 @@ from os import getenv
 from dotenv import load_dotenv
 from PIL import Image as PILImage
 import io
-
+from botocore.exceptions import BotoCoreError, ClientError  # 예외 처리용
 
 # .env 로딩
 load_dotenv()
@@ -27,26 +27,32 @@ s3_client = boto3.client(
 
 
 # 사진 업로드 함수
-def upload_image_to_s3(file: UploadFile, camera_id: int) -> str:
+def upload_image_to_s3(file: UploadFile, camera_id: int) -> tuple[str, int, int]:  # 반환 타입 tuple[str, int, int]
     ext = file.filename.split(".")[-1]
     key = f"{camera_id}/{uuid.uuid4()}.{ext}"  # S3 내부 저장 경로
 
-    # 🔹 width, height 추출
+    # width, height 추출
     file_bytes = file.file.read()
-    image = PILImage.open(io.BytesIO(file_bytes))
-    width, height = image.size
+    try:
+        image = PILImage.open(io.BytesIO(file_bytes))
+        width, height = image.size
+    except Exception as e:
+        raise ValueError("이미지 파일 열기에 실패했습니다.") from e
 
     # S3 업로드
-    s3_client.upload_fileobj(
-        io.BytesIO(file_bytes),  # 다시 스트림 형태로 변환
-        S3_BUCKET,
-        key,
-        ExtraArgs={"ContentType": file.content_type},
-    )
+    try:
+        s3_client.upload_fileobj(
+            io.BytesIO(file_bytes),  # 다시 스트림 형태로 변환
+            S3_BUCKET,
+            key,
+            ExtraArgs={"ContentType": file.content_type},
+        )
+    except (BotoCoreError, ClientError) as e:
+        raise RuntimeError("S3 업로드에 실패했습니다.") from e
 
-    # S3 URL, width, height 반환
+    # S3 URL 반환
     url = f"https://{S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{key}"
-    return url, width, height
+    return url, width, height  # S3 URL, width, height 반환
 
 
 # 로컬 이미지 파일 경로를 받아 S3에 업로드하는 함수
