@@ -726,11 +726,11 @@ class AnnotationService:
         # 3. 삭제할 annotation ID 목록 (기존에 있지만 업데이트 목록에 없는 것)
         delete_annotation_ids = existing_annotation_ids - update_annotation_ids
         
-        # 4. 삭제 처리
+        # 4. 소프트 삭제 처리 (is_active = False로 설정)
         if delete_annotation_ids:
             self.db.query(Annotation).filter(
                 Annotation.annotation_id.in_(delete_annotation_ids)
-            ).delete(synchronize_session=False)
+            ).update({'is_active': False}, synchronize_session=False)
         
         # 5. 업데이트 처리
         for update_data in data.existing_annotations:
@@ -753,7 +753,8 @@ class AnnotationService:
                 bounding_box=create_data.bounding_box,
                 date=datetime.utcnow(),
                 conf_score=1.0,
-                user_id=user_id
+                user_id=user_id,
+                is_active=True  # 새로 생성하는 어노테이션은 활성 상태
             )
             self.db.add(new_annotation)
             new_annotations.append(new_annotation)
