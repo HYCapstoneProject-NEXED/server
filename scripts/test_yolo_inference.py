@@ -3,7 +3,7 @@
 from ultralytics import YOLO
 
 # 1. 모델 로드
-model = YOLO("../best.pt")
+model = YOLO("best.pt")
 
 # 2. 테스트할 이미지 경로 (DB에 저장된 file_path 참고)
 image_path = ""  # 예: "images/test1.jpg" 또는 절대경로

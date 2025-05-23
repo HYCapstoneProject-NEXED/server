@@ -7,8 +7,8 @@ from domain.defect_class import defect_class_schema
 def get_all_defect_classes(db: Session):
     return (
         db.query(DefectClass)
-        .filter(DefectClass.is_active == True)   # ✅ 필터 추가
-        .order_by(DefectClass.created_at)        # ✅ created_at 기준 오름차순 정렬
+        .filter(DefectClass.is_active == True)   # 필터 추가
+        .order_by(DefectClass.created_at)        # created_at 기준 오름차순 정렬
         .all()
     )
 
@@ -17,7 +17,7 @@ def create_defect_class(db: Session, defect_class: defect_class_schema.DefectCla
     db_class = DefectClass(
         class_name=defect_class.class_name,
         class_color=defect_class.class_color,
-        is_active=True  # ✅ 활성 상태로 생성
+        is_active=True  # 활성 상태로 생성
     )
     db.add(db_class)
     db.commit()
@@ -46,8 +46,14 @@ def delete_defect_class(db: Session, class_id: int):
     if not db_class:
         raise HTTPException(status_code=404, detail="Defect class not found")
 
-    # ✅ 소프트 삭제 처리 (updated_at은 자동으로 갱신됨)
+    # 소프트 삭제 처리 (updated_at은 자동으로 갱신됨)
     db_class.is_active = False
     db.commit()
 
     return {"success": True, "message": f"Defect class {class_id} marked as inactive"}
+
+
+# class_id로 class_name을 조회하는 함수
+def get_class_name_by_id(db: Session, class_id: int) -> str:
+    obj = db.query(DefectClass).filter_by(class_id=class_id).first()
+    return obj.class_name if obj else "unknown"
