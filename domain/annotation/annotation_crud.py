@@ -359,7 +359,16 @@ def get_main_data(db: Session, user_id: int, filters: Optional[annotation_schema
     # Confidence 필터는 그룹화 후 적용
     if filters:
         if filters.min_confidence is not None:
-            query = query.having(func.min(Annotation.conf_score) >= filters.min_confidence)
+            # min_confidence가 0이면 annotation이 없는 이미지들도 포함
+            if filters.min_confidence == 0:
+                query = query.having(
+                    or_(
+                        func.min(Annotation.conf_score) >= filters.min_confidence,
+                        func.min(Annotation.conf_score).is_(None)  # annotation이 없는 이미지도 포함
+                    )
+                )
+            else:
+                query = query.having(func.min(Annotation.conf_score) >= filters.min_confidence)
         if filters.max_confidence is not None:
             query = query.having(func.min(Annotation.conf_score) <= filters.max_confidence)
 
