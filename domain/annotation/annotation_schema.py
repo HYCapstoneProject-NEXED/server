@@ -69,7 +69,7 @@ class DefectDetail(BaseModel):
     class_color: str
     conf_score: float
     bounding_box: Dict[str, Any]
-    user_id: int
+    user_id: Optional[int]  # null 값 허용
     is_active: bool
 
 
@@ -244,7 +244,7 @@ class AnnotationResponse(AnnotationBase):
     annotation_id: int
     date: datetime
     conf_score: float
-    user_id: int
+    user_id: Optional[int]  # null 값 허용
 
     class Config:
         from_attributes = True
