@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, Date, and_, or_, desc, literal, String
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from database.models import Annotation, DefectClass, Image, Camera, User
 from database.models import annotator_camera_association
 from collections import defaultdict
@@ -42,20 +42,33 @@ def extract_s3_key_from_url(url: str) -> str:
     return parsed_url.path.lstrip("/")  # 버킷 이름 이후 경로만 추출
 
 
+# 금일 결함 개요 조회 함수
 def get_defect_summary(db: Session):
     today = datetime.today().date()
     yesterday = today - timedelta(days=1)
+
+    # 날짜 범위 설정
+    today_start = datetime.combine(today, time.min)
+    today_end = datetime.combine(today + timedelta(days=1), time.min)
+    yesterday_start = datetime.combine(yesterday, time.min)
+    yesterday_end = datetime.combine(today, time.min)
+
+    # is_active=True인 class만 가져오기
+    class_rows = db.query(DefectClass.class_name, DefectClass.class_color).filter(DefectClass.is_active == True).all()
+    # class_name → class_color 매핑 미리 가져오기
+    class_colors = {row.class_name: row.class_color for row in class_rows}
+    active_class_names = set(class_colors.keys())  # 기준 class 목록
 
     # 오늘 결함 수 by class (Images.status='completed' + 날짜 기준은 Images.date)
     today_data = (
         db.query(
             DefectClass.class_name,
-            DefectClass.class_color,
             func.count().label("count")
         )
         .join(Annotation, Annotation.class_id == DefectClass.class_id)
         .join(Image, Annotation.image_id == Image.image_id)
-        .filter(cast(Image.date, Date) == today)
+        .filter(Image.date >= today_start)
+        .filter(Image.date < today_end)
         .filter(Image.status == 'completed')
         .group_by(DefectClass.class_id)
         .all()
@@ -69,36 +82,39 @@ def get_defect_summary(db: Session):
         )
         .join(Annotation, Annotation.class_id == DefectClass.class_id)
         .join(Image, Annotation.image_id == Image.image_id)
-        .filter(cast(Image.date, Date) == yesterday)
+        .filter(Image.date >= yesterday_start)
+        .filter(Image.date < yesterday_end)
         .filter(Image.status == 'completed')
         .group_by(DefectClass.class_id)
         .all()
     )
 
     # 응답 데이터 구성
-    today_dict = {row.class_name: {"count": row.count, "color": row.class_color} for row in today_data}
+    today_dict = {row.class_name: row.count for row in today_data}  # today_dict: count만 저장 (color는 class_colors에서 가져옴)
     yesterday_dict = {row.class_name: row.count for row in yesterday_data}
 
     # total_defects 계산
-    total_defects = sum([info["count"] for info in today_dict.values()])
+    total_defects = sum(today_dict.values())
     # max count 찾기
-    max_count = max((info["count"] for info in today_dict.values()), default=0)
+    max_count = max(today_dict.values(), default=0)
     # most frequent class_name 리스트 구성
     most_frequent = [
         class_name
-        for class_name, info in today_dict.items()
-        if info["count"] == max_count and max_count > 0
+        for class_name, count in today_dict.items()
+        if count == max_count and max_count > 0
     ]
 
     by_type = {}
-    for class_name in set(today_dict.keys()).union(yesterday_dict.keys()):
-        today_info = today_dict.get(class_name, {"count": 0, "color": "#ffffff"})
+    # 기준 class: is_active=True인 결함 전체
+    for class_name in active_class_names:
+        today_count = today_dict.get(class_name, 0)
         yesterday_count = yesterday_dict.get(class_name, 0)
+        color = class_colors[class_name]
 
         by_type[class_name] = {
-            "count": today_info["count"],
-            "color": today_info["color"],
-            "change": today_info["count"] - yesterday_count
+            "count": today_count,
+            "color": color,
+            "change": today_count - yesterday_count
         }
 
     return {
