@@ -590,7 +590,7 @@ def get_defect_statistics_by_period(
     query = query.filter(Image.status == 'completed')
 
     # 날짜 필터링
-    query = query.filter(Image.date.between(start_date, end_date))
+    query = query.filter(Image.date >= start_date, Image.date < end_date + timedelta(days=1))
     query = query.group_by(*group_by_cols).order_by("period", "label")
 
     result = query.all()
