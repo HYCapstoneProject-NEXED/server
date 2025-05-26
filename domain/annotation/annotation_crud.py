@@ -529,15 +529,13 @@ def get_defect_statistics_by_period(
 
     # 카메라 ID 필터
     elif camera_ids:
-        query = query.join(
-            DefectClass, Annotation.class_id == DefectClass.class_id
-        ).filter(
+        query = query.filter(
             Image.camera_id.in_(camera_ids)
         ).add_columns(
             func.cast(Image.camera_id, String).label("label"),
-            DefectClass.class_color.label("class_color")
+            literal(None).label("class_color")  # 그대로 null 유지
         )
-        group_by_cols = ["period", "label", "class_color"]
+        group_by_cols = ["period", "label"]
 
     # 전체 집계 (필터 없음)
     else:
