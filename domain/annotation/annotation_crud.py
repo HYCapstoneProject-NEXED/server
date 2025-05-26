@@ -19,6 +19,7 @@ import boto3
 from urllib.parse import urlparse
 from dotenv import load_dotenv
 
+
 # .env 로딩
 load_dotenv()
 
@@ -487,48 +488,6 @@ def get_defect_type_statistics(db: Session):
     ]
 
 
-# 주간 요일별 결함 통계를 위한 함수
-def get_weekday_defect_summary(db: Session):
-    raw = (
-        db.query(
-            func.date_format(Image.date, "%a").label("day"),  # Image.date를 기준으로 요일 문자열 추출 (Mon, Tue, ...)
-            DefectClass.class_name,
-            DefectClass.class_color,
-            func.count(Annotation.annotation_id).label("count")
-        )
-        .join(Image, Annotation.image_id == Image.image_id)
-        .join(DefectClass, Annotation.class_id == DefectClass.class_id)
-        .filter(
-            Image.status == "completed",  # 작업 완료된 이미지만
-            DefectClass.is_active == True  # 활성화된 결함 클래스만
-        )
-        .group_by("day", DefectClass.class_id)  # 같은 요일 + 같은 결함 클래스별로 그룹을 나눔
-        .all()
-    )
-
-    # 가공 단계
-    result_dict = {}
-    for day, class_name, class_color, count in raw:  # 요일별 데이터를 담을 임시 딕셔너리
-        if day not in result_dict:
-            result_dict[day] = {
-                "day": day,
-                "total": 0,
-                "defect_counts": []
-            }
-        result_dict[day]["total"] += count  # 같은 요일끼리 total에 누적
-        result_dict[day]["defect_counts"].append({  # 요일별로 결함 클래스별 집계 정보 리스트 추가
-            "class_name": class_name,
-            "class_color": class_color,
-            "count": count
-        })
-
-    # 요일 순 정렬 및 반환
-    weekday_order = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-    result = [result_dict[day] for day in weekday_order if day in result_dict]
-
-    return result
-
-
 # 기간별 결함 통계를 위한 함수
 def get_defect_statistics_by_period(
     db: Session,
@@ -570,13 +529,15 @@ def get_defect_statistics_by_period(
 
     # 카메라 ID 필터
     elif camera_ids:
-        query = query.filter(
+        query = query.join(
+            DefectClass, Annotation.class_id == DefectClass.class_id
+        ).filter(
             Image.camera_id.in_(camera_ids)
         ).add_columns(
             func.cast(Image.camera_id, String).label("label"),
-            literal(None).label("class_color")
+            DefectClass.class_color.label("class_color")
         )
-        group_by_cols = ["period", "label"]
+        group_by_cols = ["period", "label", "class_color"]
 
     # 전체 집계 (필터 없음)
     else:
@@ -590,20 +551,62 @@ def get_defect_statistics_by_period(
     query = query.filter(Image.status == 'completed')
 
     # 날짜 필터링
-    query = query.filter(Image.date >= start_date, Image.date < end_date + timedelta(days=1))
+    query = query.filter(Image.date >= start_date, Image.date < end_date + timedelta(days=1))  # 🔧 수정
     query = query.group_by(*group_by_cols).order_by("period", "label")
 
     result = query.all()
 
-    return [
-        {
-            "date": row.period,
+    # 1. label → class_color 맵 생성 & data_map 구성
+    label_color_map = {}
+    data_map = {}
+    for row in result:
+        label = getattr(row, "label", None)
+        color = getattr(row, "class_color", None)
+        key = (row.period, label)
+        data_map[key] = {
             "defect_count": row.defect_count,
-            **({"label": row.label} if row.label is not None else {}),
-            **({"class_color": row.class_color} if row.class_color is not None else {})
+            "class_color": color,
         }
-        for row in result
-    ]
+        if label is not None and color is not None:
+            label_color_map[label] = color
+
+    # 2. label_list 생성
+    label_list = list(set(label for (_, label) in data_map.keys()))
+    if not label_list:
+        label_list = [None]
+
+    # 3. 모든 기간 내 날짜 리스트 생성
+    def generate_date_range(start: date, end: date, unit: str):
+        current = start
+        dates = []
+        while current <= end:
+            if unit in ("week", "month", "custom"):
+                dates.append(current.strftime("%Y-%m-%d"))
+                current += timedelta(days=1)
+            elif unit == "year":
+                dates.append(current.strftime("%Y-%m"))
+                # 다음 달로 이동
+                current = (current.replace(day=1) + timedelta(days=32)).replace(day=1)
+        return dates
+
+    date_list = generate_date_range(start_date, end_date, unit)
+
+    # 5. 응답 리스트 구성
+    final_result = []
+    for date_str in date_list:
+        for label in label_list:
+            key = (date_str, label)
+            data = data_map.get(key, {"defect_count": 0, "class_color": None})
+            entry = {
+                "date": date_str,
+                "defect_count": data["defect_count"]
+            }
+            if label is not None:
+                entry["label"] = label
+                entry["class_color"] = data["class_color"] or label_color_map.get(label)
+            final_result.append(entry)
+
+    return final_result
 
 
 def delete_images(db: Session, image_ids: List[int]):
