@@ -758,27 +758,27 @@ class AnnotationService:
                 Annotation.annotation_id.in_(delete_annotation_ids)
             ).update({'is_active': False}, synchronize_session=False)
         
-        # 5. 업데이트 처리
+        # 5. 업데이트 처리 (conf_score는 그대로 유지)
         for update_data in data.existing_annotations:
             self.db.query(Annotation).filter(
                 Annotation.annotation_id == update_data.annotation_id
             ).update({
                 'class_id': update_data.class_id,
-                'bounding_box': update_data.bounding_box,
+                'bounding_box': update_data.bounding_box.dict(),  # BoundingBox 객체를 dict로 변환
                 'date': datetime.utcnow(),
-                'conf_score': 1.0,
                 'user_id': user_id
+                # conf_score는 업데이트하지 않음 (기존 값 유지)
             })
         
-        # 6. 새로운 annotation 생성
+        # 6. 새로운 annotation 생성 (conf_score는 null)
         new_annotations = []
         for create_data in data.annotations:
             new_annotation = Annotation(
                 image_id=image_id,
                 class_id=create_data.class_id,
-                bounding_box=create_data.bounding_box,
+                bounding_box=create_data.bounding_box.dict(),  # BoundingBox 객체를 dict로 변환
                 date=datetime.utcnow(),
-                conf_score=1.0,
+                conf_score=None,  # 새로 추가되는 어노테이션은 conf_score를 null로 설정
                 user_id=user_id,
                 is_active=True  # 새로 생성하는 어노테이션은 활성 상태
             )
@@ -790,7 +790,8 @@ class AnnotationService:
         
         # 8. 업데이트된 annotation 목록 조회
         updated_annotations = self.db.query(Annotation).filter(
-            Annotation.image_id == image_id
+            Annotation.image_id == image_id,
+            Annotation.is_active == True
         ).all()
         
         return [AnnotationResponse.from_orm(ann) for ann in updated_annotations]

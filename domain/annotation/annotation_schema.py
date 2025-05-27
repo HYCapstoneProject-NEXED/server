@@ -230,9 +230,16 @@ class AnnotationHistoryFilter(BaseModel):
     search: Optional[str] = None  # user_name (문자열) 검색
 
 
+# 바운딩 박스 스키마 (confidence 제외)
+class BoundingBox(BaseModel):
+    h: int
+    w: int
+    cx: int
+    cy: int
+
 class AnnotationBase(BaseModel):
     class_id: int
-    bounding_box: dict
+    bounding_box: BoundingBox
 
 class AnnotationCreate(AnnotationBase):
     pass
@@ -243,7 +250,7 @@ class AnnotationUpdate(AnnotationBase):
 class AnnotationResponse(AnnotationBase):
     annotation_id: int
     date: datetime
-    conf_score: float
+    conf_score: Optional[float]  # null 값 허용
     user_id: Optional[int]  # null 값 허용
 
     class Config:
