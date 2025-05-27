@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Path, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, Body, UploadFile, File, Form
 import requests
 import urllib.parse
 from sqlalchemy.orm import Session
@@ -11,6 +11,9 @@ from datetime import date
 from domain.user.auth import get_current_user  # ✅ 현재 로그인한 사용자 정보 가져오기
 from config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_REDIRECT_URI
 from typing import List, Optional, Dict
+import os
+import uuid
+from pathlib import Path as FilePath
 
 
 router = APIRouter(
@@ -282,16 +285,19 @@ def get_user_profile(
 @router.put("/users/{user_id}", response_model=UserResponse)
 def update_user_profile(
     user_id: int,
-    user_update: UserUpdate,
+    bank_name: Optional[str] = Form(None),
+    bank_account: Optional[str] = Form(None),
+    address: Optional[str] = Form(None),
+    profile_image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
     """
-    사용자의 은행 정보, 주소, 회사 정보를 업데이트합니다.
-    요청 본문:
+    사용자의 은행 정보, 주소, 프로필 이미지를 업데이트합니다.
+    요청:
     - bank_name: 은행명 (선택)
     - bank_account: 계좌번호 (선택)
     - address: 주소 (선택)
-    - company_factory: '회사명/공장명' 형식의 문자열 (선택)
+    - profile_image: 프로필 이미지 파일 (선택)
     
     응답:
     - 업데이트된 사용자의 전체 정보
@@ -301,21 +307,45 @@ def update_user_profile(
         raise HTTPException(status_code=404, detail="User not found")
     
     # 각 필드 업데이트
-    if user_update.bank_name is not None:
-        user.bank_name = user_update.bank_name
-    if user_update.bank_account is not None:
-        user.bank_account = user_update.bank_account
-    if user_update.address is not None:
-        user.address = user_update.address
+    if bank_name is not None:
+        user.bank_name = bank_name
+    if bank_account is not None:
+        user.bank_account = bank_account
+    if address is not None:
+        user.address = address
     
-    # company_factory 문자열을 company_name과 factory_name으로 분리
-    if user_update.company_factory is not None:
-        if "/" not in user_update.company_factory:
-            raise HTTPException(status_code=400, detail="회사명/공장명을 '회사명/공장명' 형식으로 입력해주세요.")
+    # 프로필 이미지 업로드 처리
+    if profile_image is not None:
+        # 이미지 파일 검증
+        if not profile_image.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="업로드된 파일이 이미지가 아닙니다.")
         
-        company, factory = user_update.company_factory.split("/", 1)
-        user.company_name = company.strip()
-        user.factory_name = factory.strip()
+        # 파일 크기 제한 (5MB)
+        if profile_image.size > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="이미지 파일 크기는 5MB를 초과할 수 없습니다.")
+        
+        # 저장 디렉토리 생성
+        upload_dir = FilePath("static/profile_images")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 고유한 파일명 생성
+        file_extension = profile_image.filename.split(".")[-1] if "." in profile_image.filename else "jpg"
+        unique_filename = f"{uuid.uuid4()}.{file_extension}"
+        file_path = upload_dir / unique_filename
+        
+        # 기존 프로필 이미지 삭제 (기본 이미지가 아닌 경우)
+        if user.profile_image and user.profile_image.startswith("/static/profile_images/"):
+            old_file_path = FilePath("." + user.profile_image)
+            if old_file_path.exists():
+                old_file_path.unlink()
+        
+        # 새 이미지 저장
+        with open(file_path, "wb") as buffer:
+            content = profile_image.file.read()
+            buffer.write(content)
+        
+        # DB에 저장할 경로 (웹에서 접근 가능한 경로)
+        user.profile_image = f"/static/profile_images/{unique_filename}"
 
     db.commit()
     db.refresh(user)

@@ -50,10 +50,10 @@ class UserResponse(UserBase):
 
 
 class UserUpdate(BaseModel):
-    bank_name: Optional[str]
-    bank_account: Optional[str]
-    address: Optional[str]
-    company_factory: Optional[str]  # '회사명/공장명' 형식으로 받음
+    bank_name: Optional[str] = None
+    bank_account: Optional[str] = None
+    address: Optional[str] = None
+    profile_image: Optional[str] = None
 
 
 # 조회 필터용 (all_roles 포함)
