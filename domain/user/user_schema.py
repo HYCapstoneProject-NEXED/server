@@ -16,6 +16,7 @@ class ApprovalStatusEnum(str, Enum):
     pending = "pending"
     approved = "approved"
     rejected = "rejected"
+    incomplete = "incomplete"  # 회원가입 미완료 상태 추가
 
 
 class GenderEnum(str, Enum):
