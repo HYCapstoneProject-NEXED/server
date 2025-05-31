@@ -29,6 +29,7 @@ class ApprovalStatusEnum(str, enum.Enum):
     pending = "pending"
     approved = "approved"
     rejected = "rejected"
+    incomplete = "incomplete"
 
 
 # 성별 Enum

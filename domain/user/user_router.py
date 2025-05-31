@@ -100,6 +100,16 @@ def google_callback(code: str, db: Session = Depends(get_db)):
     elif user.approval_status == ApprovalStatusEnum.pending:
         raise HTTPException(status_code=403, detail="가입 승인 대기 중입니다. 관리자의 승인을 기다려주세요.")
 
+    # 🔷 회원가입 미완료 유저 - 추가 정보 입력 필요
+    elif user.approval_status == ApprovalStatusEnum.incomplete:
+        jwt_token = create_jwt_token(user.user_id)
+        return {
+            "message": "Additional user information required",
+            "access_token": jwt_token,
+            "token_type": "bearer",
+            "user": UserResponse.from_orm(user)
+        }
+
     # ✅ 승인 완료된 유저라면 로그인 허용 (is_active=True)
     jwt_token = create_jwt_token(user.user_id)  # FastAPI에서 발급한 JWT 토큰 생성
     return {
@@ -151,8 +161,13 @@ def google_complete_profile(
 
     # ✅ 사용자 정보 업데이트 (필수 정보 입력됨)
     updated_user = update_user_info(db, user, user_update)
+    
+    # 회원가입 완료 후 승인 대기 상태로 변경
+    user.approval_status = ApprovalStatusEnum.pending
+    db.commit()
+    db.refresh(user)
 
-    return {"message": "User profile completed successfully", "user": updated_user}
+    return {"message": "User profile completed successfully", "user": UserResponse.from_orm(user)}
 
 
 # ✅ 네이버 로그인 URL 제공
@@ -208,7 +223,7 @@ def naver_callback(code: str, state: str, db: Session = Depends(get_db)):
         new_user_data = UserBase(
             google_email=user_email,  # 기존 필드 그대로 활용 (Google/Naver 공통 이메일 필드)
             name='',
-            user_type='',
+            user_type='customer',
             birthdate=date(2000, 1, 1),
             nationality='',
             address='',
@@ -216,10 +231,33 @@ def naver_callback(code: str, state: str, db: Session = Depends(get_db)):
             factory_name='',
             bank_name='',
             bank_account='',
-            terms_accepted=False
+            terms_accepted=False,
+            gender='female'  # 기본값으로 female 설정
         )
         user = create_user(db, new_user_data)
 
+        jwt_token = create_jwt_token(user.user_id)
+        return {
+            "message": "Additional user information required",
+            "access_token": jwt_token,
+            "token_type": "bearer",
+            "user": UserResponse.from_orm(user)
+        }
+
+    # 🔷 admin이 삭제한 유저
+    elif user.approval_status == ApprovalStatusEnum.approved and user.is_active is False:
+        raise HTTPException(status_code=403, detail="관리자에 의해 비활성화된 계정입니다. 관리자에게 문의해주세요.")
+
+    # 🔷 승인 거절된 유저
+    elif user.approval_status == ApprovalStatusEnum.rejected:
+        raise HTTPException(status_code=403, detail="승인 거절된 계정입니다. 관리자에게 문의해주세요.")
+
+    # 🔷 가입 승인 대기 중인 유저
+    elif user.approval_status == ApprovalStatusEnum.pending:
+        raise HTTPException(status_code=403, detail="가입 승인 대기 중입니다. 관리자의 승인을 기다려주세요.")
+
+    # 🔷 회원가입 미완료 유저 - 추가 정보 입력 필요
+    elif user.approval_status == ApprovalStatusEnum.incomplete:
         jwt_token = create_jwt_token(user.user_id)
         return {
             "message": "Additional user information required",
@@ -261,11 +299,17 @@ def naver_complete_profile(
     if any(field is None for field in required_fields):
         raise HTTPException(status_code=400, detail="All required fields must be filled.")
 
+    # ✅ 사용자 정보 업데이트 및 상태를 pending으로 변경
     updated_user = update_user_info(db, user, user_update)
+    
+    # 회원가입 완료 후 승인 대기 상태로 변경
+    user.approval_status = ApprovalStatusEnum.pending
+    db.commit()
+    db.refresh(user)
 
     return {
         "message": "Naver user profile completed successfully",
-        "user": updated_user
+        "user": UserResponse.from_orm(user)
     }
 
 @router.get("/users/pending-approvals", response_model=List[PendingUserResponse])

@@ -33,7 +33,7 @@ def create_user(db: Session, user_data: UserBase):
         profile_image=user_data.profile_image,
         gender=user_data.gender,
         is_active=False,  # ✅ 항상 비활성 상태로 시작
-        approval_status=ApprovalStatusEnum.pending  # ✅ 가입 승인 대기 상태로 시작
+        approval_status=ApprovalStatusEnum.incomplete  # ✅ 회원가입 미완료 상태로 시작
     )
     db.add(user)
     db.commit()
