@@ -58,7 +58,7 @@ def get_main_screen(
     user_id: int,
     db: Session = Depends(get_db)
 ):
-    data = annotation_crud.get_main_data(db, user_id)
+    data = annotation_crud.get_main_data_filtered(db, user_id)
     if data is None:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -102,7 +102,7 @@ def get_filtered_image_list(
     filters: annotation_schema.FilteredImageListRequest = annotation_schema.FilteredImageListRequest(),
     db: Session = Depends(get_db)
 ):
-    data = annotation_crud.get_main_data(db, user_id, filters)
+    data = annotation_crud.get_main_data_filtered_with_filters(db, user_id, filters)
     if data is None:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -254,7 +254,7 @@ def get_task_summary(
     user_id: int,
     db: Session = Depends(get_db)
 ):
-    data = annotation_crud.get_main_data(db, user_id)
+    data = annotation_crud.get_task_summary_data(db, user_id)
     if data is None:
         raise HTTPException(status_code=404, detail="User not found")
 
