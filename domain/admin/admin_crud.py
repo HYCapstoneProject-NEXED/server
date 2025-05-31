@@ -1,10 +1,10 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, distinct
+from sqlalchemy import func, distinct, and_, or_
 from domain.admin.admin_schema import (
     TaskAssignmentStats, AnnotatorStats, UnassignedCameraStats, 
     UserCameraStats, CameraImageStats, CameraAssignment
 )
-from database.models import Camera, Image, User, annotator_camera_association
+from database.models import Camera, Image, User, annotator_camera_association, Annotation
 from fastapi import HTTPException
 from typing import Dict, List, Any
 
@@ -13,17 +13,36 @@ class AdminService:
         self.db = db
 
     def get_task_assignment_stats(self) -> TaskAssignmentStats:
+        # 필터링된 이미지 서브쿼리: annotation이 있고 최저 conf_score < 0.75인 이미지만
+        filtered_images_subquery = (
+            self.db.query(
+                Image.image_id,
+                Image.camera_id,
+                func.min(Annotation.conf_score).label("min_confidence")
+            )
+            .join(Annotation, Image.image_id == Annotation.image_id)
+            .filter(Annotation.is_active == True)  # 활성 annotation만
+            .group_by(Image.image_id, Image.camera_id)
+            .having(
+                or_(
+                    func.min(Annotation.conf_score) < 0.75,
+                    func.min(Annotation.conf_score).is_(None)  # conf_score가 null인 경우도 포함
+                )
+            )
+            .subquery()
+        )
+
         # 1. 카메라 통계
         total_cameras = self.db.query(func.count(Camera.camera_id)).scalar()
         assigned_cameras = self.db.query(func.count(distinct(annotator_camera_association.c.camera_id))).scalar()
 
-        # 2. 이미지 통계
-        total_images = self.db.query(func.count(Image.image_id)).scalar()
-        assigned_images = self.db.query(func.count(distinct(Image.image_id)))\
-            .join(annotator_camera_association, Image.camera_id == annotator_camera_association.c.camera_id)\
+        # 2. 이미지 통계 (필터링된 이미지만)
+        total_images = self.db.query(func.count(filtered_images_subquery.c.image_id)).scalar()
+        assigned_images = self.db.query(func.count(distinct(filtered_images_subquery.c.image_id)))\
+            .join(annotator_camera_association, filtered_images_subquery.c.camera_id == annotator_camera_association.c.camera_id)\
             .scalar()
 
-        # 3. 어노테이터 통계
+        # 3. 어노테이터 통계 (필터링된 이미지 기준)
         annotators = []
         annotator_users = self.db.query(User).filter(User.user_type == 'annotator').all()
         
@@ -32,8 +51,8 @@ class AdminService:
                 .filter(annotator_camera_association.c.user_id == user.user_id)\
                 .scalar()
             
-            assigned_images_count = self.db.query(func.count(distinct(Image.image_id)))\
-                .join(annotator_camera_association, Image.camera_id == annotator_camera_association.c.camera_id)\
+            assigned_images_count = self.db.query(func.count(distinct(filtered_images_subquery.c.image_id)))\
+                .join(annotator_camera_association, filtered_images_subquery.c.camera_id == annotator_camera_association.c.camera_id)\
                 .filter(annotator_camera_association.c.user_id == user.user_id)\
                 .scalar()
             
@@ -44,12 +63,12 @@ class AdminService:
                 assigned_images_count=assigned_images_count
             ))
 
-        # 4. 할당되지 않은 카메라 ID와 이미지 개수
+        # 4. 할당되지 않은 카메라 ID와 이미지 개수 (필터링된 이미지 기준)
         assigned_camera_ids = self.db.query(distinct(annotator_camera_association.c.camera_id)).subquery()
         unassigned_cameras = self.db.query(
             Camera.camera_id,
-            func.count(Image.image_id).label('image_count')
-        ).outerjoin(Image, Camera.camera_id == Image.camera_id)\
+            func.count(filtered_images_subquery.c.image_id).label('image_count')
+        ).outerjoin(filtered_images_subquery, Camera.camera_id == filtered_images_subquery.c.camera_id)\
          .filter(~Camera.camera_id.in_(assigned_camera_ids))\
          .group_by(Camera.camera_id)\
          .all()
@@ -76,12 +95,31 @@ class AdminService:
         if not user:
             return None
 
-        # 사용자에게 할당된 카메라와 각 카메라의 이미지 개수 조회
+        # 필터링된 이미지 서브쿼리: annotation이 있고 최저 conf_score < 0.75인 이미지만
+        filtered_images_subquery = (
+            self.db.query(
+                Image.image_id,
+                Image.camera_id,
+                func.min(Annotation.conf_score).label("min_confidence")
+            )
+            .join(Annotation, Image.image_id == Annotation.image_id)
+            .filter(Annotation.is_active == True)  # 활성 annotation만
+            .group_by(Image.image_id, Image.camera_id)
+            .having(
+                or_(
+                    func.min(Annotation.conf_score) < 0.75,
+                    func.min(Annotation.conf_score).is_(None)  # conf_score가 null인 경우도 포함
+                )
+            )
+            .subquery()
+        )
+
+        # 사용자에게 할당된 카메라와 각 카메라의 필터링된 이미지 개수 조회
         camera_stats = self.db.query(
             Camera.camera_id,
-            func.count(Image.image_id).label('image_count')
+            func.count(filtered_images_subquery.c.image_id).label('image_count')
         ).join(annotator_camera_association, Camera.camera_id == annotator_camera_association.c.camera_id)\
-         .outerjoin(Image, Camera.camera_id == Image.camera_id)\
+         .outerjoin(filtered_images_subquery, Camera.camera_id == filtered_images_subquery.c.camera_id)\
          .filter(annotator_camera_association.c.user_id == user_id)\
          .group_by(Camera.camera_id)\
          .all()
