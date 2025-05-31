@@ -448,6 +448,221 @@ def get_main_data(db: Session, user_id: int, filters: Optional[annotation_schema
     }
 
 
+def get_main_data_filtered(db: Session, user_id: int):
+    """
+    메인 화면 데이터 조회 (필터링 적용) - annotation이 없는 이미지와 최저 conf_score가 0.75 이상인 이미지 제외
+    """
+    # 1. 현재 로그인된 사용자의 profile_image 가져오기
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        return None
+
+    # 2. 이미지 목록 조회 - annotation이 있는 이미지만, 최저 conf_score < 0.75인 이미지만
+    query = (
+        db.query(
+            Image.camera_id,
+            Image.image_id,
+            Image.file_path,
+            Image.width,
+            Image.height,
+            Image.status,
+            Image.date,  # 정렬을 위해 date 필드 추가
+            func.count(Annotation.annotation_id).label("count"),
+            func.min(Annotation.conf_score).label("confidence")
+        )
+        .join(Annotation, Image.image_id == Annotation.image_id)  # INNER JOIN으로 annotation이 있는 이미지만
+        .filter(Annotation.is_active == True)  # 활성 annotation만
+        .group_by(Image.image_id)
+    )
+    
+    # 3. 최저 conf_score가 0.75 미만인 이미지만 필터링
+    query = query.having(
+        or_(
+            func.min(Annotation.conf_score) < 0.75,
+            func.min(Annotation.conf_score).is_(None)  # conf_score가 null인 경우도 포함
+        )
+    )
+    
+    # 4. 최신 날짜 순으로 정렬
+    query = query.order_by(Image.date.desc())
+    
+    images = query.all()
+
+    # 5. 바운딩 박스 정보 조회
+    image_ids = [img.image_id for img in images]
+    
+    if image_ids:  # 이미지가 있을 때만 바운딩 박스 조회
+        bounding_boxes_query = (
+            db.query(
+                Annotation.image_id,
+                func.json_arrayagg(
+                    func.json_object(
+                        'bounding_box', Annotation.bounding_box,
+                        'class_name', DefectClass.class_name,
+                        'is_active', Annotation.is_active
+                    )
+                ).label('boxes')
+            )
+            .join(DefectClass, Annotation.class_id == DefectClass.class_id)
+            .filter(Annotation.image_id.in_(image_ids))
+            .filter(Annotation.is_active == True)  # is_active=True인 어노테이션만 포함
+            .group_by(Annotation.image_id)
+        )
+        
+        bounding_boxes = bounding_boxes_query.all()
+        bbox_dict = {row.image_id: row.boxes for row in bounding_boxes}
+    else:
+        bbox_dict = {}
+
+    # 6. 응답 데이터 구성
+    image_list = []
+    for img in images:
+        image_list.append({
+            "camera_id": img.camera_id,
+            "image_id": img.image_id,
+            "file_path": img.file_path,
+            "width": img.width,
+            "height": img.height,
+            "confidence": float(img.confidence) if img.confidence else None,
+            "count": img.count,
+            "status": img.status,
+            "bounding_boxes": bbox_dict.get(img.image_id, [])
+        })
+
+    # 7. 전체 통계 계산
+    total_images = len(image_list)
+    pending_images = sum(1 for img in image_list if img["status"] == "pending")
+    completed_images = sum(1 for img in image_list if img["status"] == "completed")
+
+    return {
+        "profile_image": user.profile_image,
+        "total_images": total_images,
+        "pending_images": pending_images,
+        "completed_images": completed_images,
+        "image_list": image_list
+    }
+
+
+def get_main_data_filtered_with_filters(db: Session, user_id: int, filters: Optional[annotation_schema.MainScreenFilter] = None):
+    """
+    메인 화면 데이터 조회 (필터링 적용 + 추가 필터) - annotation이 없는 이미지와 최저 conf_score가 0.75 이상인 이미지 제외
+    """
+    # 1. 현재 로그인된 사용자의 profile_image 가져오기
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        return None
+
+    # 2. 이미지 목록 조회 - annotation이 있는 이미지만
+    query = (
+        db.query(
+            Image.camera_id,
+            Image.image_id,
+            Image.file_path,
+            Image.width,
+            Image.height,
+            Image.status,
+            Image.date,  # 정렬을 위해 date 필드 추가
+            func.count(Annotation.annotation_id).label("count"),
+            func.min(Annotation.conf_score).label("confidence")
+        )
+        .join(Annotation, Image.image_id == Annotation.image_id)  # INNER JOIN으로 annotation이 있는 이미지만
+        .filter(Annotation.is_active == True)  # 활성 annotation만
+    )
+    
+    # 클래스 이름 필터가 있을 경우, DefectClass 조인
+    if filters and filters.class_names:
+        query = query.join(DefectClass, Annotation.class_id == DefectClass.class_id)
+
+    # 3. 필터 적용
+    if filters:
+        if filters.status:
+            query = query.filter(Image.status == filters.status)
+        if filters.class_names:
+            query = query.filter(DefectClass.class_name.in_(filters.class_names))
+        
+    # 마지막에 그룹화
+    query = query.group_by(Image.image_id)
+    
+    # 4. 최저 conf_score가 0.75 미만인 이미지만 필터링
+    having_conditions = [
+        or_(
+            func.min(Annotation.conf_score) < 0.75,
+            func.min(Annotation.conf_score).is_(None)  # conf_score가 null인 경우도 포함
+        )
+    ]
+    
+    # Confidence 필터는 그룹화 후 적용
+    if filters:
+        if filters.min_confidence is not None:
+            # min_confidence가 0이면 annotation이 없는 이미지들도 포함하지만, 
+            # 우리는 이미 INNER JOIN으로 annotation이 있는 것만 가져오므로 단순 비교
+            having_conditions.append(func.min(Annotation.conf_score) >= filters.min_confidence)
+        if filters.max_confidence is not None:
+            having_conditions.append(func.min(Annotation.conf_score) <= filters.max_confidence)
+
+    # 모든 HAVING 조건 적용
+    query = query.having(and_(*having_conditions))
+    
+    # 5. 최신 날짜 순으로 정렬
+    query = query.order_by(Image.date.desc())
+    
+    images = query.all()
+
+    # 6. 바운딩 박스 정보 조회
+    image_ids = [img.image_id for img in images]
+    
+    if image_ids:  # 이미지가 있을 때만 바운딩 박스 조회
+        bounding_boxes_query = (
+            db.query(
+                Annotation.image_id,
+                func.json_arrayagg(
+                    func.json_object(
+                        'bounding_box', Annotation.bounding_box,
+                        'class_name', DefectClass.class_name,
+                        'is_active', Annotation.is_active
+                    )
+                ).label('boxes')
+            )
+            .join(DefectClass, Annotation.class_id == DefectClass.class_id)
+            .filter(Annotation.image_id.in_(image_ids))
+            .filter(Annotation.is_active == True)  # is_active=True인 어노테이션만 포함
+            .group_by(Annotation.image_id)
+        )
+        
+        bounding_boxes = bounding_boxes_query.all()
+        bbox_dict = {row.image_id: row.boxes for row in bounding_boxes}
+    else:
+        bbox_dict = {}
+
+    # 7. 응답 데이터 구성
+    image_list = []
+    for img in images:
+        image_list.append({
+            "camera_id": img.camera_id,
+            "image_id": img.image_id,
+            "file_path": img.file_path,
+            "width": img.width,
+            "height": img.height,
+            "confidence": float(img.confidence) if img.confidence else None,
+            "count": img.count,
+            "status": img.status,
+            "bounding_boxes": bbox_dict.get(img.image_id, [])
+        })
+
+    # 8. 전체 통계 계산
+    total_images = len(image_list)
+    pending_images = sum(1 for img in image_list if img["status"] == "pending")
+    completed_images = sum(1 for img in image_list if img["status"] == "completed")
+
+    return {
+        "profile_image": user.profile_image,
+        "total_images": total_images,
+        "pending_images": pending_images,
+        "completed_images": completed_images,
+        "image_list": image_list
+    }
+
+
 # 결함 유형별 통계를 위한 함수
 def get_defect_type_statistics(db: Session):
     # 전체 결함 주석 개수 구하기
@@ -837,3 +1052,47 @@ class AnnotationService:
         ).all()
         
         return [AnnotationResponse.from_orm(ann) for ann in updated_annotations]
+
+
+def get_task_summary_data(db: Session, user_id: int):
+    """
+    작업 요약 데이터 조회 - annotation이 없는 이미지와 최저 conf_score가 0.75 이상인 이미지 제외
+    """
+    # 1. 현재 로그인된 사용자 확인
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        return None
+
+    # 2. 이미지 목록 조회 - annotation이 있는 이미지만
+    query = (
+        db.query(
+            Image.image_id,
+            Image.status,
+            func.min(Annotation.conf_score).label("min_confidence"),
+            func.count(Annotation.annotation_id).label("annotation_count")
+        )
+        .join(Annotation, Image.image_id == Annotation.image_id)
+        .filter(Annotation.is_active == True)  # 활성 annotation만
+        .group_by(Image.image_id, Image.status)
+    )
+    
+    # 3. 최저 conf_score가 0.75 미만인 이미지만 필터링
+    query = query.having(
+        or_(
+            func.min(Annotation.conf_score) < 0.75,
+            func.min(Annotation.conf_score).is_(None)  # conf_score가 null인 경우도 포함
+        )
+    )
+    
+    images = query.all()
+    
+    # 4. 통계 계산
+    total_images = len(images)
+    pending_images = sum(1 for img in images if img.status == "pending")
+    completed_images = sum(1 for img in images if img.status == "completed")
+
+    return {
+        "total_images": total_images,
+        "pending_images": pending_images,
+        "completed_images": completed_images
+    }
