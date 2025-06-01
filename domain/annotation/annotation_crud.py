@@ -303,6 +303,7 @@ def get_annotation_details_by_image_id(db: Session, image_id: int):
         "date": image_info.date,
         "camera_id": image_info.camera_id,
         "dataset_id": image_info.dataset_id,
+        "status": image_info.status,
         "width": image_info.width,
         "height": image_info.height,
         "defects": []

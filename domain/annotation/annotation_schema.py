@@ -67,7 +67,7 @@ class DefectDetail(BaseModel):
     class_id: int
     class_name: str
     class_color: str
-    conf_score: float
+    conf_score: Optional[float]  # None 값을 허용하도록 수정
     bounding_box: Dict[str, Any]
     user_id: Optional[int]  # null 값 허용
     is_active: bool
@@ -79,6 +79,7 @@ class AnnotationDetailResponse(BaseModel):
     date: datetime
     camera_id: int
     dataset_id: int
+    status: str  # 이미지 상태 (pending/completed) 추가
     width: int
     height: int
     defects: List[DefectDetail]
