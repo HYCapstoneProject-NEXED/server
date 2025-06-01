@@ -13,7 +13,7 @@ def run_inference(image_path: str, db: Session) -> List[BoundingBox]:  # 반환 
     if model is None:
         raise RuntimeError("YOLO model not initialized. Call _set_model first.")
 
-    results = model(image_path, conf=0.1)[0]
+    results = model(image_path, conf=0.365, imgsz=800)[0]
     detections = []
 
     if results.boxes is not None:
