@@ -14,10 +14,27 @@ def get_all_defect_classes(db: Session):
 
 
 def create_defect_class(db: Session, defect_class: defect_class_schema.DefectClassCreate) -> DefectClass:
+    # 1. 동일 이름으로 이미 존재하는 클래스 조회
+    existing = db.query(DefectClass).filter(
+        DefectClass.class_name == defect_class.class_name
+    ).first()
+
+    # 2. 이미 존재 + 비활성화 상태면 → is_active = True로 복구
+    if existing:
+        if not existing.is_active:
+            existing.is_active = True
+            existing.class_color = defect_class.class_color  # 색상도 갱신할 수 있음
+            db.commit()
+            db.refresh(existing)
+            return existing
+        else:
+            raise HTTPException(status_code=400, detail="이미 존재하는 결함 클래스입니다.")
+
+    # 3. 없으면 새로 추가
     db_class = DefectClass(
         class_name=defect_class.class_name,
         class_color=defect_class.class_color,
-        is_active=True  # 활성 상태로 생성
+        is_active=True
     )
     db.add(db_class)
     db.commit()
