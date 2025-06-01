@@ -233,10 +233,10 @@ class AnnotationHistoryFilter(BaseModel):
 
 # 바운딩 박스 스키마 (confidence 제외)
 class BoundingBox(BaseModel):
-    h: int
-    w: int
-    cx: int
-    cy: int
+    h: float  # 높이 (정수/실수 모두 허용)
+    w: float  # 너비 (정수/실수 모두 허용)
+    cx: float  # 중심점 X 좌표 (정수/실수 모두 허용)
+    cy: float  # 중심점 Y 좌표 (정수/실수 모두 허용)
 
 class AnnotationBase(BaseModel):
     class_id: int
