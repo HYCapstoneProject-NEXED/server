@@ -1097,3 +1097,34 @@ def get_task_summary_data(db: Session, user_id: int):
         "pending_images": pending_images,
         "completed_images": completed_images
     }
+
+
+# 더미 데이터 삽입 시 주석 생성을 위한 함수
+def create_annotation(
+    db: Session,
+    image_id: int,
+    class_id: int,
+    x_center: float,
+    y_center: float,
+    w: float,
+    h: float,
+    confidence: float,
+    user_id: int | None = None  # 필요하면 사용
+):
+    annotation = Annotation(
+        image_id=image_id,
+        class_id=class_id,
+        bounding_box={
+            "x_center": x_center,
+            "y_center": y_center,
+            "w": w,
+            "h": h
+        },
+        conf_score=confidence,
+        user_id=user_id,  # 필요 시 None으로 전달
+        is_active=True
+    )
+    db.add(annotation)
+    db.commit()
+    db.refresh(annotation)
+    return annotation

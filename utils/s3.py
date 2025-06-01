@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 from PIL import Image as PILImage
 import io
 from botocore.exceptions import BotoCoreError, ClientError  # 예외 처리용
+import unicodedata
+
 
 # .env 로딩
 load_dotenv()
@@ -57,14 +59,21 @@ def upload_image_to_s3(file: UploadFile, camera_id: int) -> tuple[str, int, int]
 
 # 로컬 이미지 파일 경로를 받아 S3에 업로드하는 함수
 def upload_local_file_to_s3(file_path: str, camera_id: int):
-    ext = file_path.split('.')[-1]
-    key = f"{camera_id}/{uuid.uuid4()}.{ext}"
+    # 🔧 파일 이름에서 확장자 추출
+    file_name = file_path.split('/')[-1]
+    ext = file_name.split('.')[-1]
 
+    # 🔧 파일 이름을 S3 키로 사용 (camera_id/파일명)
+    file_name = unicodedata.normalize("NFC", file_name)  # 정규화
+    key = f"{camera_id}/{file_name}"
+
+    # 🔧 파일 열기 및 이미지 크기 확인
     with open(file_path, "rb") as f:
         file_bytes = f.read()
         image = PILImage.open(io.BytesIO(file_bytes))
         width, height = image.size
 
+        # 🔧 S3 업로드
         s3_client.upload_fileobj(
             io.BytesIO(file_bytes),
             S3_BUCKET,
@@ -72,5 +81,6 @@ def upload_local_file_to_s3(file_path: str, camera_id: int):
             ExtraArgs={"ContentType": f"image/{ext}"}
         )
 
+    # 🔧 정적 URL 생성
     url = f"https://{S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{key}"
     return url, width, height
