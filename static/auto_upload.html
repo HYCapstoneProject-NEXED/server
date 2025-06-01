@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>📷 자동 결함 이미지 업로드</title>
+</head>
+<body style="font-family: sans-serif; padding: 20px; text-align: center;">
+  <h2>📸 자동 촬영 시스템</h2>
+  <video id="cameraPreview" autoplay playsinline style="width: 100%; max-width: 400px; border: 1px solid #ccc;"></video>
+  <canvas id="canvas" style="display: none;"></canvas>
+  <p id="log" style="margin-top: 20px;">🎬 시작 버튼을 누르면 촬영이 시작됩니다</p>
+
+  <button id="startButton" style="margin: 10px; padding: 10px;">▶️ 시작</button>
+  <button id="toggleButton" style="margin: 10px; padding: 10px; display: none;">⏸️ 업로드 중단</button>
+
+  <script>
+    const video = document.getElementById("cameraPreview");
+    const canvas = document.getElementById("canvas");
+    const log = document.getElementById("log");
+    const toggleButton = document.getElementById("toggleButton");
+    const startButton = document.getElementById("startButton");
+
+    const cameraId = 6;
+    const uploadUrl = "https://12ca-59-14-67-65.ngrok-free.app/images/upload";
+
+    let uploadInterval = null;
+    let isUploading = true;
+
+    // ✅ 1. 카메라 미리보기만 먼저 시작
+    async function initializeCameraPreview() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        video.srcObject = stream;
+        log.innerText = "✅ 카메라 미리보기 준비 완료. 시작 버튼을 누르세요.";
+        console.log("✅ 카메라 프리뷰 연결됨");
+      } catch (err) {
+        log.innerText = "❌ 카메라 접근 실패: " + err.message;
+        console.error("❌ 카메라 접근 실패", err);
+      }
+    }
+
+    // ✅ 2. 시작 버튼 누르면 캡처 시작
+    function startAutoCapture() {
+      const ctx = canvas.getContext("2d");
+
+      uploadInterval = setInterval(async () => {
+        if (!isUploading) return;
+
+        const width = video.videoWidth;
+        const height = video.videoHeight;
+
+        if (width === 0 || height === 0) {
+          console.warn("⚠️ 비디오 크기 초기화 전, 캡처 스킵");
+          return;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(video, 0, 0, width, height);
+
+        console.log("📸 프레임 캡처됨");
+
+        canvas.toBlob(async (blob) => {
+          console.log("🧩 Blob 생성됨:", blob);
+
+          const formData = new FormData();
+          formData.append("file", blob, `capture_${Date.now()}.jpg`);
+          formData.append("camera_id", cameraId);
+
+          try {
+            console.log("📡 업로드 시작:", uploadUrl);
+
+            const res = await fetch(uploadUrl, {
+              method: "POST",
+              body: formData,
+              mode: "cors",
+            });
+
+            const responseText = await res.text();
+            console.log("📝 응답 수신 완료:", res.status, responseText);
+
+            if (!res.ok) {
+              throw new Error(`HTTP ${res.status} - ${responseText}`);
+            }
+
+            const data = JSON.parse(responseText);
+            log.innerText = `✅ 업로드 성공: 이미지 ID ${data.image_id}`;
+          } catch (err) {
+            log.innerText = `❌ 업로드 실패: ${err.message}`;
+            console.error("❌ 업로드 에러:", err);
+          }
+        }, "image/jpeg");
+      }, 3000);
+    }
+
+    // ✅ 3. 중단/재개 버튼 토글
+    toggleButton.addEventListener("click", () => {
+      isUploading = !isUploading;
+      toggleButton.innerText = isUploading ? "⏸️ 업로드 중단" : "▶️ 업로드 재개";
+      log.innerText = isUploading ? "✅ 업로드 재개됨" : "⛔ 업로드 중단됨";
+    });
+
+    // ✅ 4. 시작 버튼 클릭 시 촬영 시작
+    startButton.addEventListener("click", () => {
+      log.innerText = "📸 자동 촬영 시작됨 (3초 간격)";
+      startAutoCapture();
+      startButton.style.display = "none";
+      toggleButton.style.display = "inline-block";
+    });
+
+    // 초기 카메라 미리보기만 실행
+    initializeCameraPreview();
+  </script>
+</body>
+</html>

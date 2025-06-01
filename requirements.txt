@@ -10,6 +10,7 @@ python-dotenv
 boto3
 python-multipart
 pillow
+opencv-python
 
 # yolo 모델 관련
 ultralytics==8.3.109
