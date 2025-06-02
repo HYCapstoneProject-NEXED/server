@@ -56,10 +56,10 @@ def upload_dummy_images():
                     db=db,
                     image_id=image.image_id,
                     class_id=box.class_id,
-                    x=box.bounding_box.x_center,
-                    y=box.bounding_box.y_center,
-                    width=box.bounding_box.w,
-                    height=box.bounding_box.h,
+                    x_center=box.bounding_box.x_center,
+                    y_center=box.bounding_box.y_center,
+                    w=box.bounding_box.w,
+                    h=box.bounding_box.h,
                     confidence=box.confidence
                 )
 

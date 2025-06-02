@@ -1104,10 +1104,10 @@ def create_annotation(
     db: Session,
     image_id: int,
     class_id: int,
-    x: float,
-    y: float,
-    width: float,
-    height: float,
+    x_center: float,
+    y_center: float,
+    w: float,
+    h: float,
     confidence: float,
     user_id: int | None = None  # 필요하면 사용
 ):
@@ -1115,10 +1115,10 @@ def create_annotation(
         image_id=image_id,
         class_id=class_id,
         bounding_box={
-            "x_center": x,
-            "y_center": y,
-            "width": width,
-            "height": height
+            "x_center": x_center,
+            "y_center": y_center,
+            "w": w,
+            "h": h
         },
         conf_score=confidence,
         user_id=user_id,  # 필요 시 None으로 전달
