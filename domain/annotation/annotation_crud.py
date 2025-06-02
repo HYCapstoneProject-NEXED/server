@@ -707,9 +707,10 @@ def get_defect_type_statistics(db: Session):
         for r in results
     ]
 
-
-# 주간 요일별 결함 통계를 위한 함수
+# 주간 요일별 결함 통계를 위한 함수 (최근 7일)
 def get_weekday_defect_summary(db: Session):
+    seven_days_ago = datetime.now() - timedelta(days=7)  # 최근 7일 기준 날짜 계산
+
     raw = (
         db.query(
             func.date_format(Image.date, "%a").label("day"),  # Image.date를 기준으로 요일 문자열 추출 (Mon, Tue, ...)
@@ -721,7 +722,8 @@ def get_weekday_defect_summary(db: Session):
         .join(DefectClass, Annotation.class_id == DefectClass.class_id)
         .filter(
             Image.status == "completed",  # 작업 완료된 이미지만
-            DefectClass.is_active == True  # 활성화된 결함 클래스만
+            DefectClass.is_active == True,  # 활성화된 결함 클래스만
+            Image.date >= seven_days_ago  # 최근 7일 조건 추가
         )
         .group_by("day", DefectClass.class_id)  # 같은 요일 + 같은 결함 클래스별로 그룹을 나눔
         .all()
@@ -743,8 +745,9 @@ def get_weekday_defect_summary(db: Session):
             "count": count
         })
 
-    # 요일 순 정렬 및 반환
-    weekday_order = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    # 오늘 날짜 기준 최근 7일(오늘 포함) 역순 정렬
+    recent_7_days = [datetime.now().date() - timedelta(days=i) for i in range(6, -1, -1)]
+    weekday_order = [day.strftime("%a") for day in recent_7_days]  # ['Wed', 'Thu', ..., 'Tue'] 형태
     result = [result_dict[day] for day in weekday_order if day in result_dict]
 
     return result

@@ -6,10 +6,16 @@ import pymysql
 pymysql.install_as_MySQLdb()
 
 # MySQL 연결 정보
-DATABASE_URL = "mysql+pymysql://root:1234@localhost:3306/mydatabase"
+DATABASE_URL = "mysql+pymysql://root:Gyurim123!@localhost:3306/capstoneProject"
 
 # SQLAlchemy 엔진 생성
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=10,
+    max_overflow=20,
+    pool_timeout=30,
+    pool_recycle=1800
+)
 
 # 세션 생성
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
