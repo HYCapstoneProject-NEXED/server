@@ -329,19 +329,27 @@ def get_user_profile(
 @router.put("/users/{user_id}", response_model=UserResponse)
 def update_user_profile(
     user_id: int,
+    db: Session = Depends(get_db),
+    # JSON 요청을 위한 body 파라미터 추가
+    user_update: Optional[UserUpdate] = Body(None),
+    # Form 데이터를 위한 파라미터들 (기존 유지)
     bank_name: Optional[str] = Form(None),
     bank_account: Optional[str] = Form(None),
     address: Optional[str] = Form(None),
-    profile_image: Optional[UploadFile] = File(None),
-    db: Session = Depends(get_db)
+    profile_image: Optional[UploadFile] = File(None)
 ):
     """
     사용자의 은행 정보, 주소, 프로필 이미지를 업데이트합니다.
+    
+    두 가지 방식 지원:
+    1. JSON 요청: Content-Type: application/json
+    2. Form 데이터 요청: Content-Type: multipart/form-data (프로필 이미지 업로드 시)
+    
     요청:
     - bank_name: 은행명 (선택)
     - bank_account: 계좌번호 (선택)
     - address: 주소 (선택)
-    - profile_image: 프로필 이미지 파일 (선택)
+    - profile_image: 프로필 이미지 파일 (선택, Form 데이터에서만)
     
     응답:
     - 업데이트된 사용자의 전체 정보
@@ -350,15 +358,24 @@ def update_user_profile(
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # 각 필드 업데이트
-    if bank_name is not None:
-        user.bank_name = bank_name
-    if bank_account is not None:
-        user.bank_account = bank_account
-    if address is not None:
-        user.address = address
+    # JSON 요청인 경우 (user_update가 있는 경우)
+    if user_update is not None:
+        if user_update.bank_name is not None:
+            user.bank_name = user_update.bank_name
+        if user_update.bank_account is not None:
+            user.bank_account = user_update.bank_account
+        if user_update.address is not None:
+            user.address = user_update.address
+    else:
+        # Form 데이터인 경우 (기존 로직)
+        if bank_name is not None:
+            user.bank_name = bank_name
+        if bank_account is not None:
+            user.bank_account = bank_account
+        if address is not None:
+            user.address = address
     
-    # 프로필 이미지 업로드 처리
+    # 프로필 이미지 업로드 처리 (Form 데이터에서만 가능)
     if profile_image is not None:
         # 이미지 파일 검증
         if not profile_image.content_type.startswith("image/"):
