@@ -13,6 +13,7 @@ from domain.annotation.annotation_schema import (
     AnnotationCreate, AnnotationUpdate, AnnotationResponse, 
     AnnotationBulkUpdate
 )
+from domain.annotation.annotation_schema import ThumbnailAnnotationResponse, ThumbnailBoundingBox, BoundingBox
 from sqlalchemy.orm import aliased
 import os
 import boto3
@@ -1135,3 +1136,43 @@ def create_annotation(
     db.commit()
     db.refresh(annotation)
     return annotation
+
+
+# 썸네일 바운딩 박스 표시 함수
+def get_thumbnail_annotation(db: Session, image_id: int) -> ThumbnailAnnotationResponse:
+    image = db.query(Image).filter(Image.image_id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    results = (
+        db.query(Annotation, DefectClass)
+        .join(DefectClass, Annotation.class_id == DefectClass.class_id)
+        .filter(
+            Annotation.image_id == image_id,
+            Annotation.is_active == True
+        )
+        .all()
+    )
+
+    annotations = [
+        ThumbnailBoundingBox(
+            class_name=cls.class_name,
+            class_color=cls.class_color,
+            confidence=ann.conf_score or 0.0,
+            bounding_box=BoundingBox(
+                cx=ann.bounding_box.get("x_center", ann.bounding_box.get("cx")),
+                cy=ann.bounding_box.get("y_center", ann.bounding_box.get("cy")),
+                w=ann.bounding_box.get("w", ann.bounding_box.get("width")),
+                h=ann.bounding_box.get("h", ann.bounding_box.get("height")),
+            )
+        )
+        for ann, cls in results
+    ]
+
+    return ThumbnailAnnotationResponse(
+        image_id=image.image_id,
+        file_path=image.file_path,
+        width=image.width,
+        height=image.height,
+        annotations=annotations
+    )

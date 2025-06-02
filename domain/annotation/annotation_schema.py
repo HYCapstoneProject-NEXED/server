@@ -268,3 +268,22 @@ class TaskSummaryResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class ThumbnailBoundingBox(BaseModel):
+    class_name: str
+    class_color: str
+    confidence: float
+    bounding_box: BoundingBox
+
+
+# 썸네일 바운딩 박스 표시용 응답 스키마
+class ThumbnailAnnotationResponse(BaseModel):
+    image_id: int
+    file_path: str
+    width: int
+    height: int
+    annotations: List[ThumbnailBoundingBox]
+
+    class Config:
+        orm_mode = True

@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from domain.annotation.annotation_crud import AnnotationService
 import json  # JSON 파싱을 위한 모듈 추가
 from database.models import DefectClass  # DefectClass 모델 추가
+from domain.annotation.annotation_schema import ThumbnailAnnotationResponse
 
 
 router = APIRouter(
@@ -263,3 +264,10 @@ def get_task_summary(
         pending_images=data["pending_images"],
         completed_images=data["completed_images"]
     )
+
+@router.get("/annotations/thumbnail/{image_id}", response_model=ThumbnailAnnotationResponse)
+def get_thumbnail_annotations(image_id: int, db: Session = Depends(get_db)):
+    """
+    특정 이미지의 썸네일 결함 바운딩 박스 정보 조회
+    """
+    return annotation_crud.get_thumbnail_annotation(db, image_id)
