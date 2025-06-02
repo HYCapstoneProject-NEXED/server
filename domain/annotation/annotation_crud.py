@@ -452,13 +452,14 @@ def get_main_data(db: Session, user_id: int, filters: Optional[annotation_schema
 def get_main_data_filtered(db: Session, user_id: int):
     """
     메인 화면 데이터 조회 (필터링 적용) - annotation이 없는 이미지와 최저 conf_score가 0.75 이상인 이미지 제외
+    사용자에게 할당된 카메라의 이미지만 조회
     """
     # 1. 현재 로그인된 사용자의 profile_image 가져오기
     user = db.query(User).filter(User.user_id == user_id).first()
     if not user:
         return None
 
-    # 2. 이미지 목록 조회 - annotation이 있는 이미지만, 최저 conf_score < 0.75인 이미지만
+    # 2. 사용자에게 할당된 카메라의 이미지 목록 조회 - annotation이 있는 이미지만, 최저 conf_score < 0.75인 이미지만
     query = (
         db.query(
             Image.camera_id,
@@ -472,17 +473,19 @@ def get_main_data_filtered(db: Session, user_id: int):
             func.min(Annotation.conf_score).label("confidence")
         )
         .join(Annotation, Image.image_id == Annotation.image_id)  # INNER JOIN으로 annotation이 있는 이미지만
+        .join(Camera, Image.camera_id == Camera.camera_id)  # 카메라 테이블 JOIN
+        .join(                                              # 사용자-카메라 할당 테이블 JOIN
+            annotator_camera_association,
+            Camera.camera_id == annotator_camera_association.c.camera_id
+        )
+        .filter(annotator_camera_association.c.user_id == user_id)  # 사용자에게 할당된 카메라만 필터링
         .filter(Annotation.is_active == True)  # 활성 annotation만
+        .filter(Annotation.conf_score.isnot(None))  # conf_score가 null이 아닌 annotation만
         .group_by(Image.image_id)
     )
     
     # 3. 최저 conf_score가 0.75 미만인 이미지만 필터링
-    query = query.having(
-        or_(
-            func.min(Annotation.conf_score) < 0.75,
-            func.min(Annotation.conf_score).is_(None)  # conf_score가 null인 경우도 포함
-        )
-    )
+    query = query.having(func.min(Annotation.conf_score) < 0.75)
     
     # 4. 최신 날짜 순으로 정렬
     query = query.order_by(Image.date.desc())
@@ -547,13 +550,14 @@ def get_main_data_filtered(db: Session, user_id: int):
 def get_main_data_filtered_with_filters(db: Session, user_id: int, filters: Optional[annotation_schema.MainScreenFilter] = None):
     """
     메인 화면 데이터 조회 (필터링 적용 + 추가 필터) - annotation이 없는 이미지와 최저 conf_score가 0.75 이상인 이미지 제외
+    사용자에게 할당된 카메라의 이미지만 조회
     """
     # 1. 현재 로그인된 사용자의 profile_image 가져오기
     user = db.query(User).filter(User.user_id == user_id).first()
     if not user:
         return None
 
-    # 2. 이미지 목록 조회 - annotation이 있는 이미지만
+    # 2. 사용자에게 할당된 카메라의 이미지 목록 조회 - annotation이 있는 이미지만
     query = (
         db.query(
             Image.camera_id,
@@ -567,7 +571,14 @@ def get_main_data_filtered_with_filters(db: Session, user_id: int, filters: Opti
             func.min(Annotation.conf_score).label("confidence")
         )
         .join(Annotation, Image.image_id == Annotation.image_id)  # INNER JOIN으로 annotation이 있는 이미지만
+        .join(Camera, Image.camera_id == Camera.camera_id)  # 카메라 테이블 JOIN
+        .join(                                              # 사용자-카메라 할당 테이블 JOIN
+            annotator_camera_association,
+            Camera.camera_id == annotator_camera_association.c.camera_id
+        )
+        .filter(annotator_camera_association.c.user_id == user_id)  # 사용자에게 할당된 카메라만 필터링
         .filter(Annotation.is_active == True)  # 활성 annotation만
+        .filter(Annotation.conf_score.isnot(None))  # conf_score가 null이 아닌 annotation만
     )
     
     # 클래스 이름 필터가 있을 경우, DefectClass 조인
@@ -585,18 +596,11 @@ def get_main_data_filtered_with_filters(db: Session, user_id: int, filters: Opti
     query = query.group_by(Image.image_id)
     
     # 4. 최저 conf_score가 0.75 미만인 이미지만 필터링
-    having_conditions = [
-        or_(
-            func.min(Annotation.conf_score) < 0.75,
-            func.min(Annotation.conf_score).is_(None)  # conf_score가 null인 경우도 포함
-        )
-    ]
+    having_conditions = [func.min(Annotation.conf_score) < 0.75]
     
     # Confidence 필터는 그룹화 후 적용
     if filters:
         if filters.min_confidence is not None:
-            # min_confidence가 0이면 annotation이 없는 이미지들도 포함하지만, 
-            # 우리는 이미 INNER JOIN으로 annotation이 있는 것만 가져오므로 단순 비교
             having_conditions.append(func.min(Annotation.conf_score) >= filters.min_confidence)
         if filters.max_confidence is not None:
             having_conditions.append(func.min(Annotation.conf_score) <= filters.max_confidence)
