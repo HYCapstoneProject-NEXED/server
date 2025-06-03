@@ -1092,45 +1092,18 @@ class AnnotationService:
 
 def get_task_summary_data(db: Session, user_id: int):
     """
-    작업 요약 데이터 조회 - annotation이 없는 이미지와 최저 conf_score가 0.75 이상인 이미지 제외
+    작업 요약 데이터 조회 - main API와 동일한 조회 조건 사용
     """
-    # 1. 현재 로그인된 사용자 확인
-    user = db.query(User).filter(User.user_id == user_id).first()
-    if not user:
+    # Main API와 동일한 데이터 조회
+    main_data = get_main_data_filtered(db, user_id)
+    if main_data is None:
         return None
 
-    # 2. 이미지 목록 조회 - annotation이 있는 이미지만
-    query = (
-        db.query(
-            Image.image_id,
-            Image.status,
-            func.min(Annotation.conf_score).label("min_confidence"),
-            func.count(Annotation.annotation_id).label("annotation_count")
-        )
-        .join(Annotation, Image.image_id == Annotation.image_id)
-        .filter(Annotation.is_active == True)  # 활성 annotation만
-        .group_by(Image.image_id, Image.status)
-    )
-    
-    # 3. 최저 conf_score가 0.75 미만인 이미지만 필터링
-    query = query.having(
-        or_(
-            func.min(Annotation.conf_score) < 0.75,
-            func.min(Annotation.conf_score).is_(None)  # conf_score가 null인 경우도 포함
-        )
-    )
-    
-    images = query.all()
-    
-    # 4. 통계 계산
-    total_images = len(images)
-    pending_images = sum(1 for img in images if img.status == "pending")
-    completed_images = sum(1 for img in images if img.status == "completed")
-
+    # Main API에서 이미 계산된 통계 반환
     return {
-        "total_images": total_images,
-        "pending_images": pending_images,
-        "completed_images": completed_images
+        "total_images": main_data["total_images"],
+        "pending_images": main_data["pending_images"],
+        "completed_images": main_data["completed_images"]
     }
 
 
