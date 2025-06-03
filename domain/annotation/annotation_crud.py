@@ -1160,8 +1160,8 @@ def get_thumbnail_annotation(db: Session, image_id: int) -> ThumbnailAnnotationR
             class_color=cls.class_color,
             confidence=ann.conf_score or 0.0,
             bounding_box=BoundingBox(
-                cx=ann.bounding_box.get("x_center", ann.bounding_box.get("cx")),
-                cy=ann.bounding_box.get("y_center", ann.bounding_box.get("cy")),
+                x_center=ann.bounding_box.get("x_center", ann.bounding_box.get("cx")),
+                y_center=ann.bounding_box.get("y_center", ann.bounding_box.get("cy")),
                 w=ann.bounding_box.get("w", ann.bounding_box.get("width")),
                 h=ann.bounding_box.get("h", ann.bounding_box.get("height")),
             )
