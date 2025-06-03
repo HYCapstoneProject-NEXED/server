@@ -1,5 +1,3 @@
-# domain/image/image_crud.py
-
 from sqlalchemy.orm import Session
 from database.models import Camera, Image
 
@@ -14,7 +12,8 @@ def create_image_record(
     camera_id: int,
     width: int,
     height: int,
-    dataset_id: int = 0
+    dataset_id: int = 0,
+    status: str | None = None  # 명시 안 하면 default='pending' 적용됨
 ):
     image = Image(
         file_path=file_path,
@@ -22,7 +21,7 @@ def create_image_record(
         dataset_id=dataset_id,
         width=width,
         height=height,
-        # date와 status는 models.py에서 default 처리됨
+        status=status  # 전달된 status 저장
     )
     db.add(image)
     db.commit()
