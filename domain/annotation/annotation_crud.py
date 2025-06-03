@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, cast, Date, and_, or_, desc, literal, String
+from sqlalchemy import func, cast, Date, and_, or_, desc, literal, String, case
 from datetime import datetime, timedelta, time
 from database.models import Annotation, DefectClass, Image, Camera, User
 from database.models import annotator_camera_association
@@ -479,8 +479,8 @@ def get_main_data_filtered(db: Session, user_id: int):
             Image.height,
             Image.status,
             Image.date,  # 정렬을 위해 date 필드 추가
-            func.count(func.if_(Annotation.is_active == True, Annotation.annotation_id, None)).label("count"),
-            func.min(func.if_(and_(Annotation.is_active == True, Annotation.conf_score.isnot(None)), Annotation.conf_score, None)).label("confidence")
+            func.sum(case((Annotation.is_active == True, 1), else_=0)).label("count"),
+            func.min(case((and_(Annotation.is_active == True, Annotation.conf_score.isnot(None)), Annotation.conf_score))).label("confidence")
         )
         .join(Annotation, Image.image_id == Annotation.image_id)  # INNER JOIN으로 annotation이 있는 이미지만 (is_active 조건 제거)
         .join(Camera, Image.camera_id == Camera.camera_id)  # 카메라 테이블 JOIN
@@ -495,8 +495,8 @@ def get_main_data_filtered(db: Session, user_id: int):
     # 3. 최저 conf_score가 0.75 미만인 이미지만 필터링 (활성 어노테이션 기준)
     query = query.having(
         or_(
-            func.min(func.if_(and_(Annotation.is_active == True, Annotation.conf_score.isnot(None)), Annotation.conf_score, None)) < 0.75,
-            func.min(func.if_(and_(Annotation.is_active == True, Annotation.conf_score.isnot(None)), Annotation.conf_score, None)).is_(None)  # 활성 어노테이션이 없는 경우도 포함
+            func.min(case((and_(Annotation.is_active == True, Annotation.conf_score.isnot(None)), Annotation.conf_score))) < 0.75,
+            func.min(case((and_(Annotation.is_active == True, Annotation.conf_score.isnot(None)), Annotation.conf_score))).is_(None)  # 활성 어노테이션이 없는 경우도 포함
         )
     )
     
