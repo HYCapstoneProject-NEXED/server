@@ -53,7 +53,17 @@ async def upload_image(
     save_inference_results(db, image.image_id, [r.dict() for r in inference_result])
     print("✅ 어노테이션 저장 완료")
 
-    # 6. 응답 반환 (추론 결과 포함)
+    # 6. confidence score 체크 → status 자동 변경
+    if inference_result:  # 추론 결과가 존재하면
+        min_confidence = min(r.confidence for r in inference_result)
+        if min_confidence >= 0.75:
+            image.status = "completed"
+            db.commit()
+            print(f"✅ 이미지 status 'completed'로 자동 업데이트됨 (min_confidence={min_confidence:.3f})")
+        else:
+            print(f"ℹ️ min_confidence={min_confidence:.3f} < 0.75 → status 변경 없음")
+
+    # 7. 응답 반환 (추론 결과 포함)
     return image_schema.ImageUploadResponse(
         image_id=image.image_id,
         file_path=image.file_path,
