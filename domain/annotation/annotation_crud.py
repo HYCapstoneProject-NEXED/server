@@ -717,11 +717,12 @@ def get_defect_type_statistics(db: Session):
 
 # 주간 요일별 결함 통계를 위한 함수 (최근 7일)
 def get_weekday_defect_summary(db: Session):
-    seven_days_ago = datetime.now() - timedelta(days=7)  # 최근 7일 기준 날짜 계산
+    today = datetime.now().date()  # 오늘 날짜 (예: 2025-06-03)
+    seven_days_ago = today - timedelta(days=6)  # 오늘 포함 → 6일만 빼면 7일 범위 됨 (예: 5/28)
 
     raw = (
         db.query(
-            func.date_format(Image.date, "%a").label("day"),  # Image.date를 기준으로 요일 문자열 추출 (Mon, Tue, ...)
+            func.date(Image.date).label("date"),  # ✅ 날짜 기준으로 group
             DefectClass.class_name,
             DefectClass.class_color,
             func.count(Annotation.annotation_id).label("count")
@@ -729,16 +730,17 @@ def get_weekday_defect_summary(db: Session):
         .join(Image, Annotation.image_id == Image.image_id)
         .join(DefectClass, Annotation.class_id == DefectClass.class_id)
         .filter(
-            Image.status == "completed",  # 작업 완료된 이미지만
-            DefectClass.is_active == True,  # 활성화된 결함 클래스만
-            Image.date >= seven_days_ago  # 최근 7일 조건 추가
+            Image.status == "completed",
+            DefectClass.is_active == True,
+            func.date(Image.date) >= seven_days_ago,  # ✅ 시작 날짜
+            func.date(Image.date) <= today            # ✅ 끝 날짜 (오늘 포함)
         )
-        .group_by("day", DefectClass.class_id)  # 같은 요일 + 같은 결함 클래스별로 그룹을 나눔
+        .group_by(func.date(Image.date), DefectClass.class_id)  # ✅ 정확한 날짜 단위로 그룹
         .all()
     )
 
     # 오늘 날짜 기준 최근 7일(오늘 포함) 역순 정렬
-    recent_7_days = [datetime.now().date() - timedelta(days=i) for i in range(6, -1, -1)]
+    recent_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
     weekday_order = [day.strftime("%a") for day in recent_7_days]
 
     # 미리 모든 요일을 초기화
@@ -751,19 +753,25 @@ def get_weekday_defect_summary(db: Session):
         for day in weekday_order
     }
 
-    # 쿼리 결과 가공
-    for day, class_name, class_color, count in raw:
-        result_dict[day]["total"] += count
-        result_dict[day]["defect_counts"].append({
-            "class_name": class_name,
-            "class_color": class_color,
-            "count": count
-        })
+    # 쿼리 결과 가공: 날짜 → 요일로 변환
+    for date, class_name, class_color, count in raw:
+        day_str = date.strftime("%a")
+        print(f"[DEBUG] {date} → {day_str}")  # ✅ 디버깅용 출력
+
+        if day_str in result_dict:
+            result_dict[day_str]["total"] += count
+            result_dict[day_str]["defect_counts"].append({
+                "class_name": class_name,
+                "class_color": class_color,
+                "count": count
+            })
 
     # 정렬 순서대로 리스트 구성
     result = [result_dict[day] for day in weekday_order]
 
     return result
+
+
 
 
 # 기간별 결함 통계를 위한 함수
