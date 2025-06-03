@@ -34,21 +34,26 @@ def upload_dummy_images():
             continue
 
         try:
-            # 🔹 1. S3 업로드 및 이미지 크기 추출
+            # 1. S3 업로드 및 이미지 크기 추출
             s3_url, width, height = upload_local_file_to_s3(file_path, camera_id)
 
-            # 🔹 2. DB 삽입
+            # 2. 모델 추론 실행
+            boxes = run_inference(file_path, db)
+
+            # confidence 최솟값 확인
+            min_conf = min([box.confidence for box in boxes], default=0.0)
+            status = "completed" if min_conf >= 0.75 else None
+
+            # 3. 이미지 DB 삽입
             image = image_crud.create_image_record(
                 db=db,
                 file_path=s3_url,
                 camera_id=camera_id,
                 width=width,
                 height=height,
-                dataset_id=0  # 필요 시 수정
+                dataset_id=0,  # 필요 시 수정
+                status=status
             )
-
-            # 3. 모델 추론 실행
-            boxes = run_inference(file_path, db)
 
             # 4. annotation 저장
             for box in boxes:
@@ -63,7 +68,7 @@ def upload_dummy_images():
                     confidence=box.confidence
                 )
 
-            print(f"✅ 완료: {file_name} (ID: {image.image_id}, 추론 결과: {len(boxes)}개)")
+            print(f"✅ 완료: {file_name} (ID: {image.image_id}, 추론 결과: {len(boxes)}개, status: {status})")
 
         except Exception as e:
             print(f"⚠️ 오류 발생: {file_name} - {e}")
