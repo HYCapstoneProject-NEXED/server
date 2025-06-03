@@ -235,8 +235,8 @@ class AnnotationHistoryFilter(BaseModel):
 class BoundingBox(BaseModel):
     h: float  # 높이 (정수/실수 모두 허용)
     w: float  # 너비 (정수/실수 모두 허용)
-    cx: float  # 중심점 X 좌표 (정수/실수 모두 허용)
-    cy: float  # 중심점 Y 좌표 (정수/실수 모두 허용)
+    x_center: float  # 중심점 X 좌표 (정수/실수 모두 허용)
+    y_center: float  # 중심점 Y 좌표 (정수/실수 모두 허용)
 
 class AnnotationBase(BaseModel):
     class_id: int
