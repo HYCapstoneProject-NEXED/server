@@ -265,7 +265,7 @@ def get_task_summary(
         completed_images=data["completed_images"]
     )
 
-@router.get("/annotations/thumbnail/{image_id}", response_model=ThumbnailAnnotationResponse)
+@router.get("/thumbnail/{image_id}", response_model=ThumbnailAnnotationResponse)
 def get_thumbnail_annotations(image_id: int, db: Session = Depends(get_db)):
     """
     특정 이미지의 썸네일 결함 바운딩 박스 정보 조회
