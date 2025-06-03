@@ -737,26 +737,31 @@ def get_weekday_defect_summary(db: Session):
         .all()
     )
 
-    # 가공 단계
-    result_dict = {}
-    for day, class_name, class_color, count in raw:  # 요일별 데이터를 담을 임시 딕셔너리
-        if day not in result_dict:
-            result_dict[day] = {
-                "day": day,
-                "total": 0,
-                "defect_counts": []
-            }
-        result_dict[day]["total"] += count  # 같은 요일끼리 total에 누적
-        result_dict[day]["defect_counts"].append({  # 요일별로 결함 클래스별 집계 정보 리스트 추가
+    # 오늘 날짜 기준 최근 7일(오늘 포함) 역순 정렬
+    recent_7_days = [datetime.now().date() - timedelta(days=i) for i in range(6, -1, -1)]
+    weekday_order = [day.strftime("%a") for day in recent_7_days]
+
+    # 미리 모든 요일을 초기화
+    result_dict = {
+        day: {
+            "day": day,
+            "total": 0,
+            "defect_counts": []
+        }
+        for day in weekday_order
+    }
+
+    # 쿼리 결과 가공
+    for day, class_name, class_color, count in raw:
+        result_dict[day]["total"] += count
+        result_dict[day]["defect_counts"].append({
             "class_name": class_name,
             "class_color": class_color,
             "count": count
         })
 
-    # 오늘 날짜 기준 최근 7일(오늘 포함) 역순 정렬
-    recent_7_days = [datetime.now().date() - timedelta(days=i) for i in range(6, -1, -1)]
-    weekday_order = [day.strftime("%a") for day in recent_7_days]  # ['Wed', 'Thu', ..., 'Tue'] 형태
-    result = [result_dict[day] for day in weekday_order if day in result_dict]
+    # 정렬 순서대로 리스트 구성
+    result = [result_dict[day] for day in weekday_order]
 
     return result
 
