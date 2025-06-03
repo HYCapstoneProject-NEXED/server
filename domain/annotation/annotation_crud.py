@@ -142,7 +142,8 @@ def get_defect_data_list(db: Session):
         .join(Camera, Camera.camera_id == Image.camera_id)
         .join(Annotation, Annotation.image_id == Image.image_id)
         .join(DefectClass, DefectClass.class_id == Annotation.class_id)
-        .filter(Image.status == 'completed')  # ✅ "pending" 제외! status="completed"인 이미지만 조회
+        .filter(Image.status == 'completed')  # "pending" 제외! status="completed"인 이미지만 조회
+        .filter(Annotation.is_active == True)  # 주석이 삭제되지 않은 것만
         .order_by(Image.date.desc())
         .all()
     )
@@ -170,7 +171,7 @@ def get_defect_data_list(db: Session):
 
 # 결함 데이터 목록 "필터링 조회"를 위한 함수
 def get_filtered_defect_data_list(db: Session, filters: annotation_schema.DefectDataFilter):
-    # 👉 아무 필터도 없을 경우 전체 조회로 대체
+    # 아무 필터도 없을 경우 전체 조회로 대체
     if not (filters.start_date and filters.end_date) and not filters.class_ids and not filters.camera_ids:
         return get_defect_data_list(db)  # 기존 전체 조회 함수 호출
 
@@ -186,24 +187,25 @@ def get_filtered_defect_data_list(db: Session, filters: annotation_schema.Defect
         .join(Camera, Camera.camera_id == Image.camera_id)
         .join(Annotation, Annotation.image_id == Image.image_id)
         .join(DefectClass, DefectClass.class_id == Annotation.class_id)
-        .filter(Image.status == 'completed')  # ✅ "pending" 제외! status="completed"인 이미지만 조회
+        .filter(Image.status == 'completed')  # "pending" 제외! status="completed"인 이미지만 조회
+        .filter(Annotation.is_active == True)  # 주석이 삭제되지 않은 것만
     )
 
-    # ✅ 날짜 필터(start_date ~ end_date)
+    # 날짜 필터(start_date ~ end_date)
     if filters.start_date and filters.end_date:
         start_datetime = datetime.combine(filters.start_date, datetime.min.time())
         end_datetime = datetime.combine(filters.end_date + timedelta(days=1), datetime.min.time())  # 포함 범위
         query = query.filter(Image.date >= start_datetime, Image.date < end_datetime)
 
-    # ✅ 결함 클래스 필터
+    # 결함 클래스 필터
     if filters.class_ids:
         query = query.filter(Annotation.class_id.in_(filters.class_ids))
 
-    # ✅ 카메라 ID 필터
+    # 카메라 ID 필터
     if filters.camera_ids:
         query = query.filter(Image.camera_id.in_(filters.camera_ids))
 
-    # ✅ 최신순 정렬
+    # 최신순 정렬
     query = query.order_by(Image.date.desc())
 
     rows = query.all()
