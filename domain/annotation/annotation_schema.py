@@ -82,6 +82,7 @@ class AnnotationDetailResponse(BaseModel):
     status: str  # 이미지 상태 (pending/completed) 추가
     width: int
     height: int
+    last_annotation_id: int  # 데이터베이스에서 가장 마지막(최대) annotation_id 값
     defects: List[DefectDetail]
 
     class Config:
