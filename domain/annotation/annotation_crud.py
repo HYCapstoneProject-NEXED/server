@@ -843,8 +843,11 @@ def get_defect_statistics_by_period(
         )
         group_by_cols = ["period"]
 
-    # completed 상태만 집계
-    query = query.filter(Image.status == 'completed')
+    # completed 상태 + 삭제되지 않은 주석만 집계
+    query = query.filter(
+        Image.status == 'completed',
+        Annotation.is_active == True  # 삭제되지 않은 주석만 포함
+    )
 
     # 날짜 필터링
     query = query.filter(Image.date >= start_date, Image.date < end_date + timedelta(days=1))  # 🔧 수정
