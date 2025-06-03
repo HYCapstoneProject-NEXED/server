@@ -690,7 +690,10 @@ def get_defect_type_statistics(db: Session):
         db.query(func.count(Annotation.annotation_id))
         .join(Image, Annotation.image_id == Image.image_id)
         .join(DefectClass, Annotation.class_id == DefectClass.class_id)
-        .filter(Image.status == 'completed', DefectClass.is_active == True)
+        .filter(Image.status == 'completed',
+                DefectClass.is_active == True,
+                Annotation.is_active == True  # 삭제되지 않은 주석만 포함
+        )
         .scalar()
     )
 
@@ -706,7 +709,10 @@ def get_defect_type_statistics(db: Session):
         )
         .join(Annotation, Annotation.class_id == DefectClass.class_id)
         .join(Image, Annotation.image_id == Image.image_id)
-        .filter(Image.status == 'completed', DefectClass.is_active == True)
+        .filter(Image.status == 'completed',
+                DefectClass.is_active == True,
+                Annotation.is_active == True  # 삭제되지 않은 주석만 포함
+        )
         .group_by(DefectClass.class_id)
         .all()
     )
