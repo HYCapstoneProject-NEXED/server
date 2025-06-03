@@ -735,7 +735,7 @@ def get_weekday_defect_summary(db: Session):
 
     raw = (
         db.query(
-            func.date(Image.date).label("date"),  # ✅ 날짜 기준으로 group
+            func.date(Image.date).label("date"),  # 날짜 기준으로 group
             DefectClass.class_name,
             DefectClass.class_color,
             func.count(Annotation.annotation_id).label("count")
@@ -745,10 +745,11 @@ def get_weekday_defect_summary(db: Session):
         .filter(
             Image.status == "completed",
             DefectClass.is_active == True,
-            func.date(Image.date) >= seven_days_ago,  # ✅ 시작 날짜
-            func.date(Image.date) <= today            # ✅ 끝 날짜 (오늘 포함)
+            Annotation.is_active == True,  # 삭제되지 않은 주석만 포함
+            func.date(Image.date) >= seven_days_ago,  # 시작 날짜
+            func.date(Image.date) <= today            # 끝 날짜 (오늘 포함)
         )
-        .group_by(func.date(Image.date), DefectClass.class_id)  # ✅ 정확한 날짜 단위로 그룹
+        .group_by(func.date(Image.date), DefectClass.class_id)  # 정확한 날짜 단위로 그룹
         .all()
     )
 
@@ -769,7 +770,7 @@ def get_weekday_defect_summary(db: Session):
     # 쿼리 결과 가공: 날짜 → 요일로 변환
     for date, class_name, class_color, count in raw:
         day_str = date.strftime("%a")
-        print(f"[DEBUG] {date} → {day_str}")  # ✅ 디버깅용 출력
+        print(f"[DEBUG] {date} → {day_str}")  # 디버깅용 출력
 
         if day_str in result_dict:
             result_dict[day_str]["total"] += count
@@ -783,8 +784,6 @@ def get_weekday_defect_summary(db: Session):
     result = [result_dict[day] for day in weekday_order]
 
     return result
-
-
 
 
 # 기간별 결함 통계를 위한 함수
