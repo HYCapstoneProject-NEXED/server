@@ -298,6 +298,12 @@ def get_annotation_details_by_image_id(db: Session, image_id: int):
     if not image_info:
         return None
 
+    # 데이터베이스에서 가장 마지막(최대) annotation_id 값 조회
+    last_annotation_id = (
+        db.query(func.max(Annotation.annotation_id))
+        .scalar() or 0
+    )
+
     result = {
         "image_id": image_info.image_id,
         "file_path": image_info.file_path,
@@ -307,6 +313,7 @@ def get_annotation_details_by_image_id(db: Session, image_id: int):
         "status": image_info.status,
         "width": image_info.width,
         "height": image_info.height,
+        "last_annotation_id": last_annotation_id,
         "defects": []
     }
 
