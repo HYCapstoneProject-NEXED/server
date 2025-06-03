@@ -61,7 +61,7 @@ def get_defect_summary(db: Session):
     class_colors = {row.class_name: row.class_color for row in class_rows}
     active_class_names = set(class_colors.keys())  # 기준 class 목록
 
-    # 오늘 결함 수 by class (Images.status='completed' + 날짜 기준은 Images.date)
+    # 오늘 결함 수 by class (Images.status='completed' + 날짜 기준은 Images.date + is_active=True 주석만)
     today_data = (
         db.query(
             DefectClass.class_name,
@@ -69,6 +69,7 @@ def get_defect_summary(db: Session):
         )
         .join(Annotation, Annotation.class_id == DefectClass.class_id)
         .join(Image, Annotation.image_id == Image.image_id)
+        .filter(Annotation.is_active == True)  # 주석이 삭제되지 않은 것만
         .filter(Image.date >= today_start)
         .filter(Image.date < today_end)
         .filter(Image.status == 'completed')
@@ -84,6 +85,7 @@ def get_defect_summary(db: Session):
         )
         .join(Annotation, Annotation.class_id == DefectClass.class_id)
         .join(Image, Annotation.image_id == Image.image_id)
+        .filter(Annotation.is_active == True)  # 주석이 삭제되지 않은 것만
         .filter(Image.date >= yesterday_start)
         .filter(Image.date < yesterday_end)
         .filter(Image.status == 'completed')
